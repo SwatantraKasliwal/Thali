@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────
+
+enum Sex {
+  male
+  female
+}
+
+enum Goal {
+  cut
+  maintain
+  bulk
+}
+
+enum Meal {
+  Breakfast
+  Lunch
+  Dinner
+  Snack
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────
+
+model Profile {
+  // id == Supabase / auth user UUID — set by the caller, not auto-generated
+  id            String   @id @db.Uuid
+  name          String?
+  sex           Sex      @default(male)
+  age           Int
+  heightCm      Decimal  @map("height_cm")      @db.Decimal(5, 1)
+  weightKg      Decimal  @map("weight_kg")      @db.Decimal(5, 2)
+  activityLevel Decimal  @default(1.55) @map("activity_level") @db.Decimal(3, 2)
+  goal          Goal     @default(maintain)
+  calTarget     Int      @map("cal_target")
+  proteinTarget Int      @map("protein_target")
+  carbTarget    Int      @map("carb_target")
+  fatTarget     Int      @map("fat_target")
+  fibreTarget   Int      @default(30) @map("fibre_target")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  foodLogs   FoodLog[]
+  weightLogs WeightLog[]
+
+  @@map("profiles")
+}
+
+model Food {
+  id              BigInt  @id @default(autoincrement())
+  name            String
+  caloriesPer100g Decimal @map("calories_per_100g") @db.Decimal(7, 2)
+  protein         Decimal @db.Decimal(6, 2)
+  carbs           Decimal @db.Decimal(6, 2)
+  fat             Decimal @db.Decimal(6, 2)
+  fibre           Decimal @db.Decimal(6, 2)
+  source          String  @default("INDB")
+
+  foodLogs FoodLog[]
+
+  @@unique([name, source])
+  @@map("foods")
+}
+
+model FoodLog {
+  id        BigInt   @id @default(autoincrement())
+  userId    String   @map("user_id")   @db.Uuid
+  foodId    BigInt   @map("food_id")
+  logDate   DateTime @default(dbgenerated("CURRENT_DATE")) @map("log_date") @db.Date
+  meal      Meal
+  quantityG Decimal  @map("quantity_g") @db.Decimal(7, 2)
+  calories  Decimal  @db.Decimal(7, 2)
+  protein   Decimal  @db.Decimal(6, 2)
+  carbs     Decimal  @db.Decimal(6, 2)
+  fat       Decimal  @db.Decimal(6, 2)
+  fibre     Decimal  @db.Decimal(6, 2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  profile Profile @relation(fields: [userId],  references: [id], onDelete: Cascade)
+  food    Food    @relation(fields: [foodId],  references: [id], onDelete: Restrict)
+
+  @@map("food_logs")
+}
+
+model WeightLog {
+  id       BigInt   @id @default(autoincrement())
+  userId   String   @map("user_id") @db.Uuid
+  logDate  DateTime @default(dbgenerated("CURRENT_DATE")) @map("log_date") @db.Date
+  weightKg Decimal  @map("weight_kg") @db.Decimal(5, 2)
+
+  profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, logDate])
+  @@map("weight_logs")
+}
