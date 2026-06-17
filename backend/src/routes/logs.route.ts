@@ -64,13 +64,18 @@ router.post('/', authenticate, async (req, res: Response) => {
     );
     res.status(201).json(entry);
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Failed to add log';
-    res.status(500).json({ error: msg });
+    // Don't echo internal/DB error text back to the client.
+    console.error('[logs] add failed', err);
+    res.status(500).json({ error: 'Failed to add log' });
   }
 });
 
 // DELETE /api/logs/:id
 router.delete('/:id', authenticate, async (req, res: Response) => {
+  // Guard the path param before BigInt() throws on non-numeric input.
+  if (!/^\d+$/.test(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid log id' });
+  }
   const id = BigInt(req.params.id);
   try {
     await deleteFoodLog(id, (req as AuthRequest).userId);
