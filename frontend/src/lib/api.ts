@@ -79,8 +79,25 @@ export async function postJSON<T>(path: string, body: unknown): Promise<T> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg = typeof data?.error === 'string' ? data.error : 'Request failed';
-    throw new Error(msg);
+    throw new Error(extractError(data?.error));
   }
   return data as T;
+}
+
+/**
+ * Turn a backend error payload into a human message. Handles both a plain
+ * string and zod's shape ({ fieldErrors, formErrors } or a bare field map),
+ * so e.g. password-policy failures show the actual reasons.
+ */
+function extractError(error: unknown): string {
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const obj = error as Record<string, unknown>;
+    const source = (obj.fieldErrors as Record<string, unknown>) ?? obj;
+    const parts = Object.values(source)
+      .flat()
+      .filter((v): v is string => typeof v === 'string');
+    if (parts.length) return parts.join('. ');
+  }
+  return 'Request failed';
 }
