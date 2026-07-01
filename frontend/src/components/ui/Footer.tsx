@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 
-const VERSION = 'SK-V1.3';
+const VERSION = 'SK-V1.4';
 const AVITA = 'Website Developed & Maintained by Avita Technologies';
 
 /**

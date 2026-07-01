@@ -56,8 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // setTimeout caps at ~24.8 days; clamp and re-arm on the next check if needed.
     const delay = Math.min(left, 2_000_000_000);
     expiryTimer.current = setTimeout(() => {
-      if (isSessionExpired()) endSession();
-      else scheduleAutoLogout();
+      if (isSessionExpired()) {
+        // Clear the httpOnly thali_token on the server before wiping client state.
+        // Without this, the lingering token cookie causes a CSRF 403 on the next
+        // login attempt (middleware sees the token but finds no matching csrf cookie).
+        void api('/auth/logout', { method: 'POST' }).catch(() => {});
+        endSession();
+      } else scheduleAutoLogout();
     }, delay);
   }, [endSession]);
 
@@ -86,7 +91,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Re-check expiry whenever the tab regains focus (covers long-backgrounded PWAs).
   useEffect(() => {
     const onVisible = () => {
-      if (user && isSessionExpired()) endSession();
+      if (user && isSessionExpired()) {
+        // Same as the timer path: clear the httpOnly cookie server-side first so
+        // it doesn't linger and block the next login with a CSRF 403.
+        void api('/auth/logout', { method: 'POST' }).catch(() => {});
+        endSession();
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
