@@ -75,7 +75,8 @@ router.post('/', authenticate, async (req, res: Response) => {
 const UpdateLogBody = z.object({ quantity: z.number().positive() });
 
 router.patch('/:id', authenticate, async (req, res: Response) => {
-  if (!/^\d+$/.test(req.params.id)) {
+  const id = String(req.params.id);
+  if (!/^\d+$/.test(id)) {
     return res.status(400).json({ error: 'Invalid log id' });
   }
   const parsed = UpdateLogBody.safeParse(req.body);
@@ -83,7 +84,7 @@ router.patch('/:id', authenticate, async (req, res: Response) => {
 
   try {
     const entry = await updateFoodLog(
-      BigInt(req.params.id),
+      BigInt(id),
       (req as AuthRequest).userId,
       parsed.data.quantity
     );
@@ -100,10 +101,11 @@ router.patch('/:id', authenticate, async (req, res: Response) => {
 // DELETE /api/logs/:id
 router.delete('/:id', authenticate, async (req, res: Response) => {
   // Guard the path param before BigInt() throws on non-numeric input.
-  if (!/^\d+$/.test(req.params.id)) {
+  const raw = String(req.params.id);
+  if (!/^\d+$/.test(raw)) {
     return res.status(400).json({ error: 'Invalid log id' });
   }
-  const id = BigInt(req.params.id);
+  const id = BigInt(raw);
   try {
     await deleteFoodLog(id, (req as AuthRequest).userId);
     res.status(204).send();
