@@ -5,25 +5,56 @@ updates:
     directory: /backend
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    # Only auto-open SAFE (minor/patch) updates, bundled into one PR. Major bumps
+    # (breaking, need manual migration) are ignored below so Dependabot never
+    # groups e.g. a framework/eslint major into a PR that can't resolve peers.
     groups:
-      backend-deps:
-        patterns:
-          - "*"
+      backend-minor-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
 
   # Frontend (Next.js)
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     groups:
-      frontend-deps:
-        patterns:
-          - "*"
+      frontend-minor-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Framework + lint stack must be upgraded deliberately (peer-dep lockstep):
+      # next ↔ eslint-config-next ↔ eslint ↔ eslint-plugin-import.
+      - dependency-name: "next"
+        update-types: [version-update:semver-major]
+      - dependency-name: "eslint"
+        update-types: [version-update:semver-major]
+      - dependency-name: "eslint-config-next"
+        update-types: [version-update:semver-major]
+      - dependency-name: "react"
+        update-types: [version-update:semver-major]
+      - dependency-name: "react-dom"
+        update-types: [version-update:semver-major]
+      - dependency-name: "@types/react"
+        update-types: [version-update:semver-major]
+      - dependency-name: "@types/react-dom"
+        update-types: [version-update:semver-major]
+      # Everything else: block majors too (opt into them by hand when ready).
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
 
   # GitHub Actions used by our workflows
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
