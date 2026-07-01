@@ -10,8 +10,10 @@ import { NextRequest, NextResponse } from 'next/server';
  *
  * Next.js automatically stamps this nonce onto the scripts it emits when it
  * sees the `Content-Security-Policy` request header set below.
+ *
+ * (Next 16 renamed the `middleware` file/function convention to `proxy`.)
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
 
   const isProd = process.env.NODE_ENV === 'production';
