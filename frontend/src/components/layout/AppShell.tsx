@@ -9,7 +9,7 @@ import WeekView from '@/components/week/WeekView';
 import MonthView from '@/components/month/MonthView';
 import ProfileView from '@/components/profile/ProfileView';
 import ThemeToggle from '@/components/ui/ThemeToggle';
-import StreakFlame from '@/components/ui/StreakFlame';
+import StreakBadge from '@/components/ui/StreakBadge';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'today',   label: 'Today',   icon: Flame },
@@ -79,7 +79,7 @@ export default function AppShell() {
           <div className="flex items-center justify-between px-4 py-3">
             <Logo />
             <div className="flex items-center gap-1">
-              <StreakFlame className="mr-0.5" />
+              <StreakBadge className="mr-0.5" />
               <ThemeToggle />
               <button
                 onClick={logout}
@@ -112,7 +112,7 @@ export default function AppShell() {
         <div className="hidden lg:flex items-center justify-between px-8 py-5 bg-surface border-b border-line">
           <h2 className="text-lg font-semibold text-ink">{activeLabel}</h2>
           <div className="flex items-center gap-2">
-            <StreakFlame />
+            <StreakBadge />
             <ThemeToggle />
           </div>
         </div>
