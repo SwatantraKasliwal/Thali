@@ -8,8 +8,18 @@ import Card from '@/components/ui/Card';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+// Warm glow marking a day whose intake ran past the suggested calorie target.
+const OVER_GLOW = '0 0 0 1.5px rgba(249,115,22,0.85), 0 0 9px 2px rgba(249,115,22,0.55)';
+
 export default function ConsistencyCard() {
-  const { logs, fasts } = useApp();
+  const { logs, fasts, targets } = useApp();
+
+  // Calories consumed per day → flags days over the suggested target.
+  const calByDay = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of logs) m.set(l.date, (m.get(l.date) ?? 0) + l.calories);
+    return m;
+  }, [logs]);
 
   const { grid, leadOffset, monthLabel, done, elapsed, current, best } = useMemo(() => {
     const coverage = buildCoverage(logs, fasts);
@@ -72,10 +82,13 @@ export default function ConsistencyCard() {
               ? COLORS.cal
               : COLORS.over;
           const isToday = d.iso === todayISO;
+          const cals    = calByDay.get(d.iso) ?? 0;
+          const over    = !d.future && cals > targets.cal;
+          const status  = d.future ? 'upcoming' : d.complete ? 'consistent' : 'incomplete';
           return (
             <div
               key={d.iso}
-              title={`${d.iso} · ${d.future ? 'upcoming' : d.complete ? 'consistent' : 'incomplete'}`}
+              title={`${d.iso} · ${status}${over ? ` · ${Math.round(cals)} kcal — over target (${targets.cal})` : ''}`}
               className="aspect-square rounded-md flex items-center justify-center text-[10px] font-medium tabular-nums"
               style={{
                 backgroundColor: bg,
@@ -83,6 +96,7 @@ export default function ConsistencyCard() {
                 color: d.future ? 'var(--muted)' : '#fff',
                 outline: isToday ? '2px solid var(--primary)' : 'none',
                 outlineOffset: isToday ? 1 : 0,
+                boxShadow: over ? OVER_GLOW : 'none',
               }}
             >
               {d.day}
@@ -92,7 +106,7 @@ export default function ConsistencyCard() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-3 text-[11px] text-ink-muted">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-[11px] text-ink-muted">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: COLORS.cal }} /> Consistent
         </span>
@@ -101,6 +115,12 @@ export default function ConsistencyCard() {
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'var(--surface-2)' }} /> Upcoming
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="w-2.5 h-2.5 rounded-sm"
+            style={{ backgroundColor: 'var(--surface-2)', boxShadow: OVER_GLOW }}
+          /> Over calories
         </span>
       </div>
     </Card>

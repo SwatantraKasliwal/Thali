@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { prisma } from '../db/client';
-import { parseCookies, COOKIE } from '../config/cookies';
+import { parseCookies, COOKIE, clearAuthCookies } from '../config/cookies';
 
 export interface AuthRequest extends Request {
   userId: string;
@@ -54,6 +54,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     (req as AuthRequest).userId = userId;
     next();
   } catch {
+    // The cookie is dead (expired / revoked / unknown user) but the browser will
+    // keep sending it — and only the server can remove an httpOnly cookie. Evict
+    // it now so the client isn't left half-authenticated on later requests.
+    if (cookies[COOKIE.TOKEN]) clearAuthCookies(res);
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }

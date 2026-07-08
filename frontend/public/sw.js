@@ -1,7 +1,9 @@
-// Bumped to v2: drops all API caching. The previous version fell back to a
-// cached /api/ response on network failure, which could replay one user's
-// personal data to another on a shared device. We now NEVER touch /api/.
-const CACHE = 'thali-v3';
+// v3 dropped all API caching (a cached /api/ fallback could replay one user's
+// personal data to another on a shared device) — we still NEVER touch /api/.
+// v4 makes navigations network-first: cache-first on the HTML shell pinned an
+// installed PWA to whatever build it first saw, so shipped UI changes never
+// arrived. Bump CACHE on every release that must invalidate the shell.
+const CACHE = 'thali-v4';
 const PRECACHE = ['/', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -57,6 +59,34 @@ self.addEventListener('notificationclick', e => {
   );
 });
 
+function putInCache(request, response) {
+  const clone = response.clone();
+  caches.open(CACHE).then(c => c.put(request, clone));
+}
+
+// Network-first: always try for a fresh document, fall back to the cached shell
+// when offline. Keeps the installed PWA on the latest build.
+async function networkFirst(request) {
+  try {
+    const res = await fetch(request);
+    if (res.ok && res.type === 'basic') putInCache(request, res);
+    return res;
+  } catch (err) {
+    const cached = (await caches.match(request)) || (await caches.match('/'));
+    if (cached) return cached;
+    throw err;
+  }
+}
+
+// Cache-first: only for content-hashed, immutable assets.
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const res = await fetch(request);
+  if (res.ok && res.type === 'basic') putInCache(request, res);
+  return res;
+}
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
 
@@ -69,16 +99,9 @@ self.addEventListener('fetch', e => {
   // Only handle same-origin static assets; let everything else pass through.
   if (url.origin !== self.location.origin) return;
 
-  // Cache-first for static shell/assets.
-  e.respondWith(
-    caches.match(e.request).then(cached =>
-      cached || fetch(e.request).then(res => {
-        if (res.ok && res.type === 'basic') {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return res;
-      })
-    )
-  );
+  // Hashed build output is immutable — safe (and fastest) to serve from cache.
+  const immutable =
+    url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/');
+
+  e.respondWith(immutable ? cacheFirst(e.request) : networkFirst(e.request));
 });

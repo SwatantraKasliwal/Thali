@@ -4,17 +4,19 @@ import { parseCookies, COOKIE } from '../config/cookies';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-// Auth endpoints that create or destroy a session are exempt from the CSRF check.
-// CSRF attacks require an existing authenticated session to forge — login/register
-// have no session yet, so they cannot be exploited. Exempting them also prevents
-// a "stale token" lockout: if thali_token lingers in the browser after a failed
-// network logout, the missing thali_csrf would otherwise block the next login.
-const CSRF_EXEMPT = new Set([
-  '/auth/login',
-  '/auth/register',
-  '/auth/google',
-  '/auth/logout',
-]);
+/**
+ * Routes that establish or destroy a session, exempt from the double-submit check.
+ *
+ * Only the server can delete the httpOnly session cookie. A client that dropped
+ * its readable CSRF cookie — expiry auto-logout, an offline logout whose POST
+ * never landed, cleared site data — is left sending a lone `thali_token`.
+ * Enforcing here would 403 exactly the requests that recover from that (login,
+ * and the logout that clears the dead cookie), wedging the user out for good.
+ * Nothing is lost: each of these overwrites or clears the session outright, and
+ * SameSite=Strict already stops a forged cross-site request from carrying the
+ * cookie at all.
+ */
+const EXEMPT_PATHS = new Set(['/auth/login', '/auth/register', '/auth/google', '/auth/logout']);
 
 /** Constant-time string compare (guards the token check against timing probes). */
 function safeEqual(a: string, b: string): boolean {
@@ -31,7 +33,7 @@ function safeEqual(a: string, b: string): boolean {
  */
 export function csrfProtection(req: Request, res: Response, next: NextFunction): void {
   if (SAFE_METHODS.has(req.method)) return next();
-  if (CSRF_EXEMPT.has(req.path)) return next();
+  if (EXEMPT_PATHS.has(req.path.replace(/\/+$/, '').toLowerCase())) return next();
 
   const cookies = parseCookies(req);
   if (!cookies[COOKIE.TOKEN]) return next();   // not a cookie session → not CSRF-eligible
