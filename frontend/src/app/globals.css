@@ -36,6 +36,12 @@
 html {
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
+  font-size: 17px;              /* larger, more readable base type across the app */
+}
+
+/* Installed PWA (standalone) — bump the base a touch more for comfort on phones */
+@media (display-mode: standalone) {
+  html { font-size: 18px; }
 }
 
 body {

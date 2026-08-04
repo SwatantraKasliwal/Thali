@@ -115,25 +115,27 @@ export default function MonthView() {
     };
   }, [dayMap, start]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Weight series + average ───────────────────────────────────────────────
-  // Carry the most recent weigh-in from BEFORE the range forward to the range
-  // start, so a new month/period "starts from" the last logged weight even
-  // before a fresh entry exists (weights are stored ascending by date).
+  // ── Weight trend — always the FULL lifetime history, independent of the
+  // range dropdown, so the whole weight journey is always visible.
   const weightSeries = useMemo(() => {
-    const startISO = toISO(start);
     const fmt = (iso: string) =>
-      parseISO(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-    const within = weights.filter(w => inRange(w.date));
-    const series = within.map(w => ({ label: fmt(w.date), weight: w.weightKg }));
-    const prior = [...weights].reverse().find(w => w.date < startISO);
-    if (prior && !within.some(w => w.date === startISO)) {
-      series.unshift({ label: fmt(startISO), weight: prior.weightKg });
+      parseISO(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' });
+    // weights are stored ascending by date
+    return weights.map(w => ({ label: fmt(w.date), weight: w.weightKg }));
+  }, [weights]);
+
+  // Avg weight in the stats card stays tied to the selected range, carrying the
+  // most recent weigh-in from BEFORE the range forward when none exists inside it.
+  const avgWeight = useMemo(() => {
+    const startISO = toISO(start);
+    const within = weights.filter(w => inRange(w.date)).map(w => w.weightKg);
+    if (within.length === 0) {
+      const prior = [...weights].reverse().find(w => w.date < startISO);
+      if (prior) within.push(prior.weightKg);
     }
-    return series;
+    if (within.length === 0) return null;
+    return Math.round((within.reduce((s, w) => s + w, 0) / within.length) * 10) / 10;
   }, [weights, start, endISO]); // eslint-disable-line react-hooks/exhaustive-deps
-  const avgWeight = weightSeries.length
-    ? Math.round((weightSeries.reduce((s, w) => s + w.weight, 0) / weightSeries.length) * 10) / 10
-    : null;
 
   // ── Macro split (avg grams/day, incl. fibre) ──────────────────────────────
   const macroData = [
@@ -192,14 +194,15 @@ export default function MonthView() {
         </div>
       </Card>
 
-      {/* Weight trend */}
+      {/* Weight trend — lifetime */}
       <Card className="p-4">
-        <div className="text-xs font-medium text-ink-muted mb-3">Weight trend</div>
+        <div className="text-xs font-medium text-ink-muted mb-3">Weight trend · all time</div>
         <div className="h-40">
           {weightSeries.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={weightSeries} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#8F9870' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#8F9870' }} axisLine={false} tickLine={false}
+                  interval="preserveStartEnd" minTickGap={24} />
                 <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={{ fontSize: 10, fill: '#8F9870' }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Line type="monotone" dataKey="weight" stroke={WEIGHT_COLOR} strokeWidth={2} dot={{ r: 3, fill: WEIGHT_COLOR }} />
@@ -207,7 +210,7 @@ export default function MonthView() {
             </ResponsiveContainer>
           ) : (
             <div className="h-full flex items-center justify-center text-xs text-ink-muted">
-              No weight logged in this range
+              No weight logged yet
             </div>
           )}
         </div>

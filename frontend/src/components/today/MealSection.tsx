@@ -6,7 +6,6 @@ import { FoodResult, LogEntry } from '@/types';
 import { allowDecimals } from '@/lib/validate';
 import { api } from '@/lib/api';
 import { useApp } from '@/context/AppContext';
-import Card from '@/components/ui/Card';
 
 interface MealSectionProps {
   meal: string;
@@ -152,7 +151,11 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
   const customInput = 'w-full bg-surface-2 rounded-lg border border-line px-2.5 py-2 text-sm text-ink outline-none focus:border-primary transition-colors';
 
   return (
-    <Card className="p-4">
+    // Glassy meal card: slight blur + translucent surface, no border.
+    <div
+      className="rounded-2xl p-4 shadow-sm backdrop-blur-sm"
+      style={{ background: 'color-mix(in srgb, var(--surface) 55%, transparent)' }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div>
@@ -200,7 +203,7 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
               {editId === i.id ? (
                 /* ── Inline edit row ── */
                 <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-ink">{i.name}</span>
+                  <span className="min-w-0 flex-1 break-words text-ink">{i.name}</span>
                   <div className="flex items-center rounded-lg border border-primary bg-surface-2 px-2 py-1">
                     <input
                       type="text"
@@ -233,26 +236,28 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
                 </div>
               ) : (
                 /* ── Display row ── */
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-ink">{i.name}</span>
-                    <span className="text-ink-muted text-xs"> · {i.qty}g</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <span className="text-ink-muted tabular-nums text-xs">{i.calories} kcal</span>
+                <div className="flex items-start justify-between gap-2">
+                  {/* Long dish names wrap instead of forcing a horizontal scroll */}
+                  <span className="min-w-0 flex-1 text-ink break-words">{i.name}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Calories + weight aligned in their own right-hand column */}
+                    <div className="text-right leading-tight">
+                      <div className="text-ink tabular-nums text-sm font-medium">{i.calories} kcal</div>
+                      <div className="text-ink-muted tabular-nums text-xs">{i.qty} g</div>
+                    </div>
                     <button
                       onClick={() => startEdit(i)}
                       className="text-ink-muted hover:text-primary transition-colors p-0.5"
                       aria-label="Edit"
                     >
-                      <Pencil size={13} />
+                      <Pencil size={15} />
                     </button>
                     <button
                       onClick={() => onDelete(i.id)}
                       className="text-ink-muted hover:text-danger transition-colors p-0.5"
                       aria-label="Delete"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
@@ -354,10 +359,10 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
                     <button
                       key={f.id}
                       onClick={() => pick(f)}
-                      className="w-full flex justify-between items-center px-3 py-2.5 text-sm text-left text-ink hover:bg-surface-2 transition-colors"
+                      className="w-full flex justify-between items-start gap-2 px-3 py-2.5 text-sm text-left text-ink hover:bg-surface-2 transition-colors"
                     >
-                      <span>{f.name}</span>
-                      <span className="text-xs text-ink-muted ml-2 shrink-0 tabular-nums">
+                      <span className="min-w-0 flex-1 break-words">{f.name}</span>
+                      <span className="text-xs text-ink-muted shrink-0 tabular-nums">
                         {Math.round(f.caloriesPer100g)} kcal/100g
                       </span>
                     </button>
@@ -382,7 +387,7 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
               {/* Selected dish → edit grams → add */}
               <div className="flex items-center justify-between rounded-lg bg-accent-soft px-3 py-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-primary truncate">{selectedFood.name}</div>
+                  <div className="text-sm font-medium text-primary break-words">{selectedFood.name}</div>
                   <div className="text-xs text-ink-muted tabular-nums">
                     {Math.round(selectedFood.caloriesPer100g)} kcal/100g
                   </div>
@@ -427,6 +432,6 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
           )}
         </div>
       )}
-    </Card>
+    </div>
   );
 }

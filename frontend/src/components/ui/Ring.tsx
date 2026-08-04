@@ -1,16 +1,37 @@
-import { COLORS } from '@/lib/constants';
-
 interface RingProps {
   value: number;
   max: number;
 }
 
+// Progress-based ring colour: greener as intake climbs, red once over budget.
+//   < 25%  → neutral (just getting started)
+//   ≥ 25%  → green
+//   ≥ 50%  → yellow
+//   ≥ 75%  → orange
+//   > 100% → red (over budget)
+const RING = {
+  base:   '#94A3B8',
+  green:  '#22C55E',
+  yellow: '#EAB308',
+  orange: '#F97316',
+  red:    '#EF4444',
+} as const;
+
+function ringColor(pct: number, over: boolean): string {
+  if (over)        return RING.red;
+  if (pct >= 0.75) return RING.orange;
+  if (pct >= 0.5)  return RING.yellow;
+  if (pct >= 0.25) return RING.green;
+  return RING.base;
+}
+
 export default function Ring({ value, max }: RingProps) {
   const r = 72;
   const circumference = 2 * Math.PI * r;
-  const pct = Math.min(value / max, 1);
+  const ratio = max > 0 ? value / max : 0;
+  const pct = Math.min(ratio, 1);
   const over = value > max;
-  const color = over ? COLORS.over : COLORS.cal;
+  const color = ringColor(ratio, over);
 
   return (
     <div className="relative w-44 h-44">

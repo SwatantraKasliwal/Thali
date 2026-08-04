@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { Flame } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { buildCoverage, currentStreak, flameTier } from '@/lib/consistency';
 
@@ -25,14 +26,14 @@ export default function StreakBadge({ className = '' }: { className?: string }) 
     <div
       title={`${streak}-day streak — log Breakfast, Lunch & Dinner (or fast) every day to keep it alive`}
       aria-label={`${streak} day streak`}
-      className={`relative grid place-items-center min-w-8 h-8 px-1.5 rounded-xl border overflow-hidden backdrop-blur-md ${className}`}
+      className={`relative inline-flex items-center gap-1.5 h-9 pl-2 pr-2.5 rounded-xl border overflow-hidden backdrop-blur-md ${className}`}
       style={{
-        background: `linear-gradient(145deg, rgba(${rgb},${0.16 + 0.22 * i}), rgba(${rgb},${0.04 + 0.1 * i}))`,
-        borderColor: `rgba(${rgb},${0.35 + 0.35 * i})`,
+        background: `linear-gradient(145deg, rgba(${rgb},${0.28 + 0.24 * i}), rgba(${rgb},${0.12 + 0.14 * i}))`,
+        borderColor: `rgba(${rgb},${0.55 + 0.35 * i})`,
         boxShadow: [
-          `0 0 ${6 + 16 * i}px ${1 + 3 * i}px rgba(${rgb},${0.22 + 0.4 * i})`,
-          `inset 0 1px 0 rgba(255,255,255,0.35)`,
-          `inset 0 -8px 12px -8px rgba(${rgb},0.65)`,
+          `0 0 ${8 + 16 * i}px ${1 + 3 * i}px rgba(${rgb},${0.3 + 0.4 * i})`,
+          `inset 0 1px 0 rgba(255,255,255,0.4)`,
+          `inset 0 -8px 12px -8px rgba(${rgb},0.7)`,
         ].join(', '),
       }}
     >
@@ -40,9 +41,18 @@ export default function StreakBadge({ className = '' }: { className?: string }) 
       <span
         aria-hidden
         className="absolute inset-x-0 top-0 h-1/2 rounded-t-xl pointer-events-none"
-        style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.22), rgba(255,255,255,0))' }}
+        style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.28), rgba(255,255,255,0))' }}
       />
-      <span className="relative text-xs font-bold tabular-nums" style={{ color: `rgb(${rgb})` }}>
+      <Flame
+        size={16}
+        strokeWidth={2.5}
+        className="relative shrink-0"
+        style={{ color: `rgb(${rgb})`, fill: `rgba(${rgb},0.35)` }}
+      />
+      <span
+        className="relative text-sm font-extrabold tabular-nums leading-none"
+        style={{ color: `rgb(${rgb})`, textShadow: '0 1px 1px rgba(0,0,0,0.15)' }}
+      >
         {streak}
       </span>
     </div>
