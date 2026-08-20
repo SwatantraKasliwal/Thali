@@ -8,6 +8,7 @@ import apiRouter from './routes/index';
 import { apiLimiter } from './middleware/rateLimit';
 import { csrfProtection } from './middleware/csrf';
 import { startScheduler } from './jobs/scheduler';
+import { startKeepAlive } from './jobs/keepAlive';
 
 const app = express();
 
@@ -90,6 +91,7 @@ async function start() {
     await prisma.$connect();
     console.log('✅  Database connected');
     startScheduler();   // nightly meal reminders (no-op unless push is configured)
+    startKeepAlive();   // idle ping (no-op unless KEEP_ALIVE_ENABLED=true)
     app.listen(PORT, () => console.log(`🚀  API listening on http://localhost:${PORT}`));
   } catch (err) {
     console.error('❌  Failed to start:', err);

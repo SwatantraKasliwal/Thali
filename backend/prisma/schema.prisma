@@ -83,9 +83,11 @@ model Profile {
   fibreTarget   Int      @default(30) @map("fibre_target")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
-  foodLogs   FoodLog[]
-  weightLogs WeightLog[]
-  fastLogs   FastLog[]
+  foodLogs       FoodLog[]
+  weightLogs     WeightLog[]
+  fastLogs       FastLog[]
+  supplements    Supplement[]
+  supplementLogs SupplementLog[]
 
   @@map("profiles")
 }
@@ -150,4 +152,80 @@ model WeightLog {
 
   @@unique([userId, logDate])
   @@map("weight_logs")
+}
+
+// ─── Supplements ──────────────────────────────────────────────────────────
+//
+// A supplement is a daily commitment, not a meal: once added it becomes a
+// checkbox the user ticks every day, and an unticked day breaks the streak the
+// same way a missing meal does — but only from `startDate` onward, so adding
+// one today never rewrites days that had no such commitment.
+//
+// History is append-only on purpose. Dose/macros live in SupplementVersion
+// rows (one per edit, `effectiveFrom` the day the change takes effect), and
+// every tick copies the numbers in force that day into its SupplementLog. Past
+// days therefore keep the amounts actually taken when the dose changes later,
+// and deleting a supplement is a soft delete (`endDate`) so the record — and
+// the graphs built on it — survive.
+
+model Supplement {
+  id        BigInt    @id @default(autoincrement())
+  userId    String    @map("user_id") @db.Uuid
+  name      String
+  unit      String    @default("g")                     // g | mg | ml | capsule | scoop | tablet
+  startDate DateTime  @map("start_date") @db.Date        // first day it must be ticked
+  endDate   DateTime? @map("end_date")   @db.Date        // last required day; null = still active
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  profile  Profile             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions SupplementVersion[]
+  logs     SupplementLog[]
+
+  @@index([userId])
+  @@map("supplements")
+}
+
+model SupplementVersion {
+  // Immutable dose/macro record. Edits append a new row rather than mutating
+  // the old one, so an increase from 5 g to 7 g leaves the 5 g history intact.
+  id            BigInt   @id @default(autoincrement())
+  supplementId  BigInt   @map("supplement_id")
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  amount        Decimal  @db.Decimal(8, 2)
+  calories      Decimal  @db.Decimal(7, 2)
+  protein       Decimal  @db.Decimal(6, 2)
+  carbs         Decimal  @db.Decimal(6, 2)
+  fat           Decimal  @db.Decimal(6, 2)
+  fibre         Decimal  @db.Decimal(6, 2)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  supplement Supplement @relation(fields: [supplementId], references: [id], onDelete: Cascade)
+
+  @@unique([supplementId, effectiveFrom])
+  @@index([supplementId, effectiveFrom])
+  @@map("supplement_versions")
+}
+
+model SupplementLog {
+  // One row = "ticked on this day". The macros are snapshotted from the version
+  // in force, so they feed the day's totals and stay correct forever after.
+  id           BigInt   @id @default(autoincrement())
+  userId       String   @map("user_id") @db.Uuid
+  supplementId BigInt   @map("supplement_id")
+  logDate      DateTime @map("log_date") @db.Date
+  amount       Decimal  @db.Decimal(8, 2)
+  calories     Decimal  @db.Decimal(7, 2)
+  protein      Decimal  @db.Decimal(6, 2)
+  carbs        Decimal  @db.Decimal(6, 2)
+  fat          Decimal  @db.Decimal(6, 2)
+  fibre        Decimal  @db.Decimal(6, 2)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  profile    Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplement Supplement @relation(fields: [supplementId], references: [id], onDelete: Cascade)
+
+  @@unique([supplementId, logDate])
+  @@index([userId, logDate])
+  @@map("supplement_logs")
 }

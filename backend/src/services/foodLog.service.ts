@@ -49,6 +49,33 @@ function toEntry(row: {
 
 // ─── add_food_log ─────────────────────────────────────────────────────────
 
+// quantity_g is Decimal(7,2) — cap merged totals so a runaway sum can't
+// overflow the column.
+const MAX_QTY = 99999.99;
+
+/** Per-100g macros scaled to `quantityG`. */
+function macrosFor(food: {
+  caloriesPer100g: unknown; protein: unknown; carbs: unknown; fat: unknown; fibre: unknown;
+}, quantityG: number) {
+  const k = quantityG / 100;
+  return {
+    calories: r2(Number(food.caloriesPer100g) * k),
+    protein:  r2(Number(food.protein) * k),
+    carbs:    r2(Number(food.carbs) * k),
+    fat:      r2(Number(food.fat) * k),
+    fibre:    r2(Number(food.fibre) * k),
+  };
+}
+
+/**
+ * Log a dish.
+ *
+ * The same food logged twice into the same meal on the same day is one thing
+ * eaten in two helpings, so the quantities merge into the existing row (100 g
+ * then 200 g of white rice at breakfast → a single 300 g entry) and the macros
+ * are recomputed from the combined weight. A different meal — or a different
+ * day — stays its own entry, since that's a genuinely separate serving.
+ */
 export async function addFoodLog(
   userId: string,
   foodId: bigint,
@@ -57,20 +84,31 @@ export async function addFoodLog(
   quantityG: number
 ): Promise<LogEntry> {
   const food = await prisma.food.findUniqueOrThrow({ where: { id: foodId } });
-  const k = quantityG / 100;
+  const date = new Date(logDate);
+
+  const existing = await prisma.foodLog.findFirst({
+    where:   { userId, foodId, logDate: date, meal },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (existing) {
+    const merged = Math.min(r2(Number(existing.quantityG) + quantityG), MAX_QTY);
+    const row = await prisma.foodLog.update({
+      where: { id: existing.id },
+      data:  { quantityG: merged, ...macrosFor(food, merged) },
+      include: { food: { select: { name: true } } },
+    });
+    return toEntry(row);
+  }
 
   const row = await prisma.foodLog.create({
     data: {
       userId,
       foodId,
-      logDate:   new Date(logDate),
+      logDate:   date,
       meal,
-      quantityG,
-      calories:  r2(Number(food.caloriesPer100g) * k),
-      protein:   r2(Number(food.protein) * k),
-      carbs:     r2(Number(food.carbs) * k),
-      fat:       r2(Number(food.fat) * k),
-      fibre:     r2(Number(food.fibre) * k),
+      quantityG: r2(quantityG),
+      ...macrosFor(food, quantityG),
     },
     include: { food: { select: { name: true } } },
   });
@@ -92,19 +130,11 @@ export async function updateFoodLog(
   });
   if (!existing) throw new Error('Log not found');
 
-  const food = existing.food;
-  const k = quantityG / 100;
+  const qty = Math.min(r2(quantityG), MAX_QTY);
 
   const row = await prisma.foodLog.update({
     where: { id: logId },
-    data: {
-      quantityG,
-      calories: r2(Number(food.caloriesPer100g) * k),
-      protein:  r2(Number(food.protein) * k),
-      carbs:    r2(Number(food.carbs) * k),
-      fat:      r2(Number(food.fat) * k),
-      fibre:    r2(Number(food.fibre) * k),
-    },
+    data: { quantityG: qty, ...macrosFor(existing.food, qty) },
     include: { food: { select: { name: true } } },
   });
 

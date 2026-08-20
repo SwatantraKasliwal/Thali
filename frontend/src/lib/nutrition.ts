@@ -1,4 +1,4 @@
-import { LogEntry, Profile, Targets, DaySummary } from '@/types';
+import { LogEntry, Profile, Targets, DaySummary, SupplementLog } from '@/types';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -16,7 +16,16 @@ export function snapActivityLevel(v: number): number {
   );
 }
 
-export function sumDay(logs: LogEntry[], iso: string): DaySummary {
+/**
+ * A day's totals. Ticked supplements carry their own macros, so checking one
+ * off folds it straight into the day's calories and macros — no separate entry
+ * to log.
+ */
+export function sumDay(
+  logs: LogEntry[],
+  iso: string,
+  supplementLogs: SupplementLog[] = []
+): DaySummary {
   const t = { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 };
   for (const l of logs) {
     if (l.date === iso) {
@@ -25,6 +34,15 @@ export function sumDay(logs: LogEntry[], iso: string): DaySummary {
       t.carbs    += l.carbs;
       t.fat      += l.fat;
       t.fibre    += l.fibre;
+    }
+  }
+  for (const s of supplementLogs) {
+    if (s.date === iso) {
+      t.calories += s.calories;
+      t.protein  += s.protein;
+      t.carbs    += s.carbs;
+      t.fat      += s.fat;
+      t.fibre    += s.fibre;
     }
   }
   return {

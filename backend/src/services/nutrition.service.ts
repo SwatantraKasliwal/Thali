@@ -1,7 +1,8 @@
 import { env } from '../config/env';
 import { getJSON, postJSON } from '../config/http';
 import { prisma } from '../db/client';
-import { Food } from '@prisma/client';
+import { Food, Prisma } from '@prisma/client';
+import { scoreName, sourceBonus, squash, queryTokens, MIN_SCORE } from './foodSearch';
 
 export interface FoodResult {
   id: number;
@@ -27,7 +28,10 @@ function num(v: unknown): number {
 // DEMO_KEY works but is heavily rate-limited (≈30/hr) — set FDC_API_KEY.
 
 const FDC_KEY = env.FDC_API_KEY || 'DEMO_KEY';
-const FDC_DATATYPES = ['Foundation', 'SR Legacy', 'Survey (FNDDS)', 'Branded'];
+// Whole/generic foods first — they're what someone typing "white rice" means.
+// Branded is a separate, lower-priority pass so brand noise can't drown them.
+const FDC_GENERIC = ['Foundation', 'SR Legacy', 'Survey (FNDDS)'];
+const FDC_BRANDED = ['Branded'];
 
 interface FDCNutrient { nutrientId?: number; value?: number }
 interface FDCFood { description?: string; foodNutrients?: FDCNutrient[] }
@@ -43,13 +47,19 @@ function titleCase(s: string): string {
   return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
 
-async function searchUSDA(query: string): Promise<NewFood[]> {
+async function searchUSDA(
+  query: string,
+  dataType: string[],
+  requireAllWords: boolean,
+  pageSize = 20
+): Promise<NewFood[]> {
   // POST (JSON body) — the GET endpoint returns nginx 400 for some encoded queries.
   const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${FDC_KEY}`;
   const data = await postJSON<{ foods?: FDCFood[] }>(url, {
     query,
-    pageSize: 20,
-    dataType: FDC_DATATYPES,
+    pageSize,
+    dataType,
+    requireAllWords,
   });
   const out: NewFood[] = [];
   for (const f of data.foods ?? []) {
@@ -126,23 +136,40 @@ function toResult(f: Food): FoodResult {
   };
 }
 
-/** Best-effort: try USDA, fall back to Open Food Facts. Never throws if one works. */
+/**
+ * Best-effort external lookup, cheapest-and-most-relevant first:
+ *   1. generic USDA foods, every query word required   → "white rice" ⇒ "Rice, White, …"
+ *   2. branded USDA, still requiring every word        → only to top up a thin list
+ *   3. generic USDA with the words relaxed             → typos / partial phrases
+ *   4. Open Food Facts                                 → USDA knows nothing
+ * Never throws while any step produced results.
+ */
 async function fetchFromApis(query: string): Promise<NewFood[]> {
-  let usda: NewFood[] = [];
-  try {
-    usda = await searchUSDA(query);
-  } catch (err) {
-    console.warn('[nutrition] USDA failed:', (err as Error).message);
-  }
-  if (usda.length > 0) return usda;
+  const multiWord = queryTokens(query).length > 1;
+  const out: NewFood[] = [];
+  let usdaFailed = false;
+
+  const tryUSDA = async (dataType: string[], requireAllWords: boolean, pageSize?: number) => {
+    try {
+      out.push(...await searchUSDA(query, dataType, requireAllWords, pageSize));
+    } catch (err) {
+      usdaFailed = true;
+      console.warn('[nutrition] USDA failed:', (err as Error).message);
+    }
+  };
+
+  await tryUSDA(FDC_GENERIC, multiWord);
+  if (out.length < 8) await tryUSDA(FDC_BRANDED, multiWord, 15);
+  if (out.length === 0 && multiWord) await tryUSDA(FDC_GENERIC, false);
+  if (out.length > 0) return out;
 
   try {
     return await searchOFF(query);
   } catch (err) {
     console.warn('[nutrition] OFF failed:', (err as Error).message);
     // Only surface an error if BOTH sources failed AND we have nothing.
-    if (usda.length === 0) throw new Error('Food lookup is temporarily unavailable. Please try again.');
-    return usda;
+    if (usdaFailed) throw new Error('Food lookup is temporarily unavailable. Please try again.');
+    return [];
   }
 }
 
@@ -170,16 +197,42 @@ async function persist(items: NewFood[]): Promise<FoodResult[]> {
 }
 
 /**
+ * Candidate rows from the local cache.
+ *
+ * Matching is done on a separator-stripped, lower-cased copy of the name, so
+ * casing and spacing never decide a hit: "vadapav", "Vada Pav" and "VADA-PAV"
+ * all reach the same row. Individual query words are matched too, so a
+ * multi-word query still finds names that only carry some of them.
+ */
+async function searchCache(query: string): Promise<Food[]> {
+  const qSq = squash(query);
+  if (!qSq) return [];
+
+  const NORM = Prisma.sql`regexp_replace(lower(name), '[^a-z0-9]+', '', 'g')`;
+  const conds: Prisma.Sql[] = [Prisma.sql`${NORM} LIKE ${`%${qSq}%`}`];
+  for (const t of queryTokens(query)) {
+    if (t.length >= 2) conds.push(Prisma.sql`${NORM} LIKE ${`%${t}%`}`);
+  }
+
+  return prisma.$queryRaw<Food[]>`
+    SELECT id, name, calories_per_100g AS "caloriesPer100g", protein, carbs, fat, fibre, source
+    FROM foods
+    WHERE ${Prisma.join(conds, ' OR ')}
+    LIMIT 400
+  `;
+}
+
+/**
  * Search for foods from BOTH the local DB (custom + cached) AND the live APIs,
- * merged. The DB is never the sole source — fresh API matches always surface
- * too. Custom dishes (added by any user) rank first.
+ * merged, then ranked by how well each name actually answers the query. The DB
+ * is never the sole source — fresh API matches always surface too.
  */
 export async function searchFoods(query: string): Promise<FoodResult[]> {
   // Run DB and external lookups together; the API call is the slow leg.
   const [cached, apiResult] = await Promise.all([
-    prisma.food.findMany({
-      where: { name: { contains: query, mode: 'insensitive' } },
-      take: 25,
+    searchCache(query).catch(err => {
+      console.warn('[nutrition] cache search failed:', (err as Error).message);
+      return [] as Food[];
     }),
     fetchFromApis(query).catch(err => {
       console.warn('[nutrition] API search failed:', (err as Error).message);
@@ -195,22 +248,24 @@ export async function searchFoods(query: string): Promise<FoodResult[]> {
     throw new Error('Food lookup is temporarily unavailable. Please try again.');
   }
 
-  // Merge, dedup by name (case-insensitive). Custom dishes first, then the rest
-  // of the DB cache, then anything new from the API.
-  const ordered = [
-    ...dbResults.filter(f => f.source === 'custom'),
-    ...dbResults.filter(f => f.source !== 'custom'),
-    ...apiResults,
-  ];
-  const seen = new Set<string>();
-  const out: FoodResult[] = [];
-  for (const f of ordered) {
-    const key = f.name.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(f);
+  // Merge, dedup by name (case/spacing-insensitive), keeping the best-scoring
+  // row for each dish, then rank everything by relevance to the query.
+  const best = new Map<string, { food: FoodResult; score: number }>();
+  for (const f of [...dbResults, ...apiResults]) {
+    const nameScore = scoreName(f.name, query);
+    if (nameScore <= MIN_SCORE) continue;
+    const score = nameScore + sourceBonus(f.source);
+    const key   = squash(f.name);
+    const prev  = best.get(key);
+    // Same dish from two sources → keep the higher-ranked one, but always
+    // prefer a row that already lives in the DB cache over a duplicate.
+    if (!prev || score > prev.score) best.set(key, { food: f, score });
   }
-  return out.slice(0, 25);
+
+  return [...best.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 25)
+    .map(e => e.food);
 }
 
 export interface CustomFoodInput {

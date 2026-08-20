@@ -1,0 +1,45 @@
+# External keep-alive for the Render free-tier backend.
+#
+# The in-process pinger (backend/src/jobs/keepAlive.ts) keeps an already-awake
+# service awake. This one is the recovery net: it can also WAKE a service that
+# has already slept, which a self-ping can never do.
+#
+# Set the repo variable API_URL to the public backend url, e.g.
+#   Settings → Secrets and variables → Actions → Variables → New
+#   API_URL = https://thali-api.onrender.com
+#
+# Note: GitHub delays scheduled workflows under load (often 5-15 min late) and
+# disables schedules after 60 days with no repo activity. For a hard guarantee,
+# point an uptime monitor (UptimeRobot, cron-job.org, …) at /health instead.
+name: keep-alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # every 10 minutes — under Render's 15 min idle timeout
+  workflow_dispatch:
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /health
+        env:
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "::warning::API_URL repo variable is not set — nothing to ping."
+            exit 0
+          fi
+          # Retry: a cold start can take ~50s to answer the first request.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+                   --max-time 90 --retry 3 --retry-delay 15 --retry-all-errors \
+                   "${API_URL%/}/health")
+          echo "GET ${API_URL%/}/health -> $code"
+          [ "$code" = "200" ]

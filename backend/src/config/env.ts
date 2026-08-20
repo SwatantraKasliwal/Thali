@@ -35,6 +35,12 @@ const schema = z
     // Optional shared rate-limit store. Set on multi-instance / serverless deploys
     // so limits are enforced globally instead of per-process.
     REDIS_URL:           z.string().optional(),
+    // ── Idle keep-alive (hosts that sleep an inactive service) ───────────
+    // On Render, RENDER_EXTERNAL_URL is injected automatically and KEEP_ALIVE_URL
+    // can stay unset. Interval must be under the host's idle timeout (Render: 15 min).
+    KEEP_ALIVE_ENABLED:  z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+    KEEP_ALIVE_URL:      z.string().optional(),
+    KEEP_ALIVE_MINUTES:  z.coerce.number().int().min(1).max(14).default(10),
   })
   // ── Production safety gates ──────────────────────────────────────────────
   .superRefine((val, ctx) => {

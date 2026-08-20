@@ -9,11 +9,16 @@ import Ring from '@/components/ui/Ring';
 import MacroBar from '@/components/ui/MacroBar';
 import Card from '@/components/ui/Card';
 import MealSection from './MealSection';
+import SupplementSection from './SupplementSection';
 
 export default function TodayView() {
-  const { logs, targets, fasts, selectedDate, setSelectedDate, addLog, updateLog, deleteLog, addFast, removeFast } = useApp();
+  const {
+    logs, targets, fasts, supplements, supplementLogs,
+    selectedDate, setSelectedDate, addLog, updateLog, deleteLog, addFast, removeFast,
+  } = useApp();
   const today = toISO(new Date());
-  const t = sumDay(logs, selectedDate);
+  // Ticked supplements carry macros, so the day's rings include them.
+  const t = sumDay(logs, selectedDate, supplementLogs);
   const isToday = selectedDate === today;
 
   const dayItems = (meal: string) =>
@@ -57,16 +62,26 @@ export default function TodayView() {
       </Card>
 
       {MEALS.map(meal => (
-        <MealSection
-          key={meal}
-          meal={meal}
-          items={dayItems(meal)}
-          isFasting={isFasting(meal)}
-          onAdd={(foodId: number, qty: number) => addLog(meal, foodId, qty)}
-          onUpdate={updateLog}
-          onDelete={deleteLog}
-          onToggleFast={() => toggleFast(meal)}
-        />
+        <div key={meal} className="space-y-4">
+          <MealSection
+            meal={meal}
+            items={dayItems(meal)}
+            isFasting={isFasting(meal)}
+            onAdd={(foodId: number, qty: number) => addLog(meal, foodId, qty)}
+            onUpdate={updateLog}
+            onDelete={deleteLog}
+            onToggleFast={() => toggleFast(meal)}
+          />
+          {/* Supplements sit directly under Dinner — a daily commitment rather
+              than a meal, but held to the same streak rules. */}
+          {meal === 'Dinner' && (
+            <SupplementSection
+              date={selectedDate}
+              supplements={supplements}
+              supplementLogs={supplementLogs}
+            />
+          )}
+        </div>
       ))}
     </div>
   );
