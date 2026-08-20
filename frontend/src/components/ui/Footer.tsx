@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 
-const VERSION = 'SK-V2';
+const VERSION = 'SK-V3.0.0';
 const AVITA = 'Website Developed & Maintained by Avita Technologies';
 
 /**

@@ -1,7 +1,10 @@
 'use client';
 
 import { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
-import { LogEntry, Profile, Targets, TabId, WeightEntry, FastEntry, CustomFoodInput, FoodResult } from '@/types';
+import {
+  LogEntry, Profile, Targets, TabId, WeightEntry, FastEntry, CustomFoodInput, FoodResult,
+  Supplement, SupplementLog, SupplementInput,
+} from '@/types';
 import { computeTargets, snapActivityLevel } from '@/lib/nutrition';
 import { toISO } from '@/lib/dates';
 import { api } from '@/lib/api';
@@ -13,6 +16,8 @@ interface AppContextValue {
   targets: Targets;
   weights: WeightEntry[];
   fasts: FastEntry[];
+  supplements: Supplement[];
+  supplementLogs: SupplementLog[];
   latestWeight: number | null;
   tab: TabId;
   selectedDate: string;
@@ -28,6 +33,10 @@ interface AppContextValue {
   addFast: (date: string, meal: string) => Promise<void>;
   removeFast: (date: string, meal: string) => Promise<void>;
   addCustomFood: (input: CustomFoodInput) => Promise<FoodResult>;
+  addSupplement: (input: SupplementInput) => Promise<void>;
+  updateSupplement: (id: string, input: SupplementInput) => Promise<void>;
+  removeSupplement: (id: string) => Promise<void>;
+  toggleSupplement: (id: string, date: string, taken: boolean) => Promise<void>;
   refreshLogs: () => Promise<void>;
 }
 
@@ -48,6 +57,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfileState] = useState<Profile>(DEFAULT_PROFILE);
   const [weights, setWeights]   = useState<WeightEntry[]>([]);
   const [fasts, setFasts]       = useState<FastEntry[]>([]);
+  const [supplements, setSupplements]       = useState<Supplement[]>([]);
+  const [supplementLogs, setSupplementLogs] = useState<SupplementLog[]>([]);
   const [tab, setTab]           = useState<TabId>('today');
   const [selectedDate, setSelectedDate] = useState(toISO(new Date()));
   const [loading, setLoading]   = useState(false);
@@ -95,12 +106,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // ── Fetch supplements + their daily ticks ───────────────────────────────
+  const refreshSupplements = useCallback(async () => {
+    try {
+      const res = await api('/supplements');
+      if (res.ok) {
+        const data: { supplements: Supplement[]; logs: SupplementLog[] } = await res.json();
+        setSupplements(data.supplements ?? []);
+        setSupplementLogs(data.logs ?? []);
+      }
+    } catch {
+      // ignore — supplements are optional
+    }
+  }, []);
+
   // ── Load on auth change ─────────────────────────────────────────────────
   useEffect(() => {
     if (!user) {
       setLogs([]);
       setWeights([]);
       setFasts([]);
+      setSupplements([]);
+      setSupplementLogs([]);
       setProfileState(DEFAULT_PROFILE);
       return;
     }
@@ -126,7 +153,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshLogs();
     refreshWeights();
     refreshFasts();
-  }, [user, refreshLogs, refreshWeights, refreshFasts]);
+    refreshSupplements();
+  }, [user, refreshLogs, refreshWeights, refreshFasts, refreshSupplements]);
 
   const targets = useMemo(() => computeTargets(profile), [profile]);
 
@@ -189,6 +217,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [markProfileComplete, latestWeight, persistWeight]);
 
   // ── Add log ───────────────────────────────────────────────────────────
+  // The backend merges a repeat of the same dish into the same meal on the same
+  // day (100 g + 200 g of white rice at breakfast → one 300 g entry), so the
+  // response can be either a brand-new row or an updated existing one. Match on
+  // the returned id and replace in place when it's one we already hold.
   const addLog = useCallback(
     async (meal: string, foodId: number, qty: number) => {
       try {
@@ -199,7 +231,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
         if (res.ok) {
           const saved = await res.json();
-          setLogs(prev => [...prev, { ...saved, id: String(saved.id) }]);
+          const entry: LogEntry = { ...saved, id: String(saved.id) };
+          setLogs(prev => {
+            const i = prev.findIndex(l => l.id === entry.id);
+            if (i === -1) return [...prev, entry];
+            const next = [...prev];
+            next[i] = entry;
+            return next;
+          });
         } else {
           setError(`Could not add entry (${res.status})`);
         }
@@ -301,12 +340,92 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return res.json();
   }, []);
 
+  // ── Supplements ─────────────────────────────────────────────────────────
+  // Adding one makes it due every day from today until it's deleted; missing a
+  // tick breaks the streak exactly like a missed meal. Edits append a new dose
+  // version server-side, so past days keep the amounts actually taken.
+  const addSupplement = useCallback(async (input: SupplementInput) => {
+    const res = await api('/supplements', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ ...input, startDate: toISO(new Date()) }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(typeof data?.error === 'string' ? data.error : 'Failed to save supplement');
+    }
+    const saved: Supplement = await res.json();
+    setSupplements(prev => [...prev, saved]);
+  }, []);
+
+  const updateSupplement = useCallback(async (id: string, input: SupplementInput) => {
+    const res = await api(`/supplements/${id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ ...input, effectiveFrom: toISO(new Date()) }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(typeof data?.error === 'string' ? data.error : 'Failed to update supplement');
+    }
+    const saved: Supplement = await res.json();
+    setSupplements(prev => prev.map(s => (s.id === id ? saved : s)));
+    // Today's tick (if any) was re-snapshotted to the new dose server-side.
+    refreshSupplements();
+  }, [refreshSupplements]);
+
+  const removeSupplement = useCallback(async (id: string) => {
+    const res = await api(`/supplements/${id}`, {
+      method:  'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ date: toISO(new Date()) }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(typeof data?.error === 'string' ? data.error : 'Failed to delete supplement');
+    }
+    // Soft delete — keep the row so past days and the history views still resolve.
+    refreshSupplements();
+  }, [refreshSupplements]);
+
+  const toggleSupplement = useCallback(async (id: string, date: string, taken: boolean) => {
+    try {
+      if (taken) {
+        const res = await api(`/supplements/${id}/check`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ date }),
+        });
+        if (!res.ok) throw new Error('check failed');
+        const saved: SupplementLog = await res.json();
+        setSupplementLogs(prev => [
+          ...prev.filter(l => !(l.supplementId === id && l.date === date)),
+          saved,
+        ]);
+      } else {
+        setSupplementLogs(prev => prev.filter(l => !(l.supplementId === id && l.date === date)));
+        const res = await api(`/supplements/${id}/check`, {
+          method:  'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ date }),
+        });
+        if (!res.ok) throw new Error('uncheck failed');
+      }
+    } catch {
+      refreshSupplements();
+      setError('Could not save that supplement — is the backend running?');
+    }
+  }, [refreshSupplements]);
+
   return (
     <AppContext.Provider
       value={{
-        logs, profile, targets, weights, fasts, latestWeight, tab, selectedDate, loading, error,
+        logs, profile, targets, weights, fasts, supplements, supplementLogs,
+        latestWeight, tab, selectedDate, loading, error,
         setProfile, setTab, setSelectedDate, addLog, updateLog, deleteLog, addWeight,
-        addFast, removeFast, addCustomFood, refreshLogs,
+        addFast, removeFast, addCustomFood,
+        addSupplement, updateSupplement, removeSupplement, toggleSupplement,
+        refreshLogs,
       }}
     >
       {children}

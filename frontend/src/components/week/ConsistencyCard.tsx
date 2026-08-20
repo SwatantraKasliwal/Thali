@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { buildCoverage, monthGrid, currentStreak, bestStreak } from '@/lib/consistency';
+import { buildConsistency, monthGrid, currentStreak, bestStreak, missingOn } from '@/lib/consistency';
 import { COLORS } from '@/lib/constants';
 import Card from '@/components/ui/Card';
 
@@ -12,30 +12,38 @@ const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const OVER_GLOW = '0 0 0 1.5px rgba(249,115,22,0.85), 0 0 9px 2px rgba(249,115,22,0.55)';
 
 export default function ConsistencyCard() {
-  const { logs, fasts, targets } = useApp();
+  const { logs, fasts, supplements, supplementLogs, targets } = useApp();
 
-  // Calories consumed per day → flags days over the suggested target.
+  // Calories consumed per day → flags days over the suggested target. Ticked
+  // supplements count toward the day like any other intake.
   const calByDay = useMemo(() => {
     const m = new Map<string, number>();
     for (const l of logs) m.set(l.date, (m.get(l.date) ?? 0) + l.calories);
+    for (const s of supplementLogs) m.set(s.date, (m.get(s.date) ?? 0) + s.calories);
     return m;
-  }, [logs]);
+  }, [logs, supplementLogs]);
+
+  const consistency = useMemo(
+    () => buildConsistency(logs, fasts, supplements, supplementLogs),
+    [logs, fasts, supplements, supplementLogs]
+  );
 
   const { grid, leadOffset, monthLabel, done, elapsed, current, best } = useMemo(() => {
-    const coverage = buildCoverage(logs, fasts);
-    const now      = new Date();
-    const grid     = monthGrid(coverage, now);
-    const past     = grid.filter(d => !d.future);
+    const now  = new Date();
+    const grid = monthGrid(consistency, now);
+    const past = grid.filter(d => !d.future);
     return {
       grid,
       leadOffset: new Date(now.getFullYear(), now.getMonth(), 1).getDay(),
       monthLabel: now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
       done:       past.filter(d => d.complete).length,
       elapsed:    past.length,
-      current:    currentStreak(coverage, now),
-      best:       bestStreak(coverage),
+      current:    currentStreak(consistency, now),
+      best:       bestStreak(consistency),
     };
-  }, [logs, fasts]);
+  }, [consistency]);
+
+  const hasSupplements = supplements.some(s => !s.deleted);
 
   const todayISO = new Date().toISOString().slice(0, 10);
 
@@ -49,6 +57,7 @@ export default function ConsistencyCard() {
       </div>
       <p className="text-[11px] text-ink-muted mb-3">
         Green = Breakfast, Lunch &amp; Dinner all covered (Snack optional). A fasted dinner still counts.
+        {hasSupplements && ' Every supplement due that day has to be ticked too.'}
       </p>
 
       {/* Streaks */}
@@ -85,10 +94,15 @@ export default function ConsistencyCard() {
           const cals    = calByDay.get(d.iso) ?? 0;
           const over    = !d.future && cals > targets.cal;
           const status  = d.future ? 'upcoming' : d.complete ? 'consistent' : 'incomplete';
+          const missing = d.future || d.complete ? [] : missingOn(consistency, d.iso);
           return (
             <div
               key={d.iso}
-              title={`${d.iso} · ${status}${over ? ` · ${Math.round(cals)} kcal — over target (${targets.cal})` : ''}`}
+              title={
+                `${d.iso} · ${status}` +
+                (missing.length ? ` · missing ${missing.join(', ')}` : '') +
+                (over ? ` · ${Math.round(cals)} kcal — over target (${targets.cal})` : '')
+              }
               className="aspect-square rounded-md flex items-center justify-center text-[10px] font-medium tabular-nums"
               style={{
                 backgroundColor: bg,

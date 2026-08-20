@@ -3,17 +3,17 @@
 import { useMemo } from 'react';
 import { Flame } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { buildCoverage, currentStreak, flameTier } from '@/lib/consistency';
+import { buildConsistency, currentStreak, flameTier } from '@/lib/consistency';
 
 // Warmer hue as the streak climbs through each 7-day tier. RGB triplets feed the rgba() glow.
 const TIER_RGB = ['', '224,161,27', '249,115,22', '239,68,68', '220,38,38'];
 
 export default function StreakBadge({ className = '' }: { className?: string }) {
-  const { logs, fasts } = useApp();
+  const { logs, fasts, supplements, supplementLogs } = useApp();
 
   const streak = useMemo(
-    () => currentStreak(buildCoverage(logs, fasts)),
-    [logs, fasts]
+    () => currentStreak(buildConsistency(logs, fasts, supplements, supplementLogs)),
+    [logs, fasts, supplements, supplementLogs]
   );
 
   // streak 0 → no badge at all (per spec)
@@ -24,7 +24,10 @@ export default function StreakBadge({ className = '' }: { className?: string }) 
 
   return (
     <div
-      title={`${streak}-day streak — log Breakfast, Lunch & Dinner (or fast) every day to keep it alive`}
+      title={
+        `${streak}-day streak — log Breakfast, Lunch & Dinner (or fast) every day to keep it alive` +
+        (supplements.some(s => !s.deleted) ? ', and tick every supplement you\u2019re due' : '')
+      }
       aria-label={`${streak} day streak`}
       className={`relative inline-flex items-center gap-1.5 h-9 pl-2 pr-2.5 rounded-xl border overflow-hidden backdrop-blur-md ${className}`}
       style={{

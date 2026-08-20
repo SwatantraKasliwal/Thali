@@ -15,7 +15,7 @@ import ConsistencyCard from './ConsistencyCard';
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function WeekView() {
-  const { logs, targets } = useApp();
+  const { logs, targets, supplementLogs } = useApp();
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   // Current calendar week, Monday → Sunday (not a rolling 7-day window).
@@ -23,9 +23,13 @@ export default function WeekView() {
     const monday = startOfWeek(new Date());
     return Array.from({ length: 7 }, (_, i) => {
       const d = addDays(monday, i);
-      return { name: DAY_NAMES[d.getDay()], date: toISO(d), ...sumDay(logs, toISO(d)) };
+      return {
+        name: DAY_NAMES[d.getDay()],
+        date: toISO(d),
+        ...sumDay(logs, toISO(d), supplementLogs),
+      };
     });
-  }, [logs]);
+  }, [logs, supplementLogs]);
 
   // Toggle a bar: select it, or deselect if it's already selected.
   const toggle = (i: number) => setSelectedIdx(cur => (cur === i ? null : i));

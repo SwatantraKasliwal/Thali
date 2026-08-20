@@ -64,6 +64,49 @@ export interface FastEntry {
   meal: string;
 }
 
+// ─── Supplements ──────────────────────────────────────────────────────────
+
+export const SUPPLEMENT_UNITS = ['g', 'mg', 'ml', 'capsule', 'tablet', 'scoop'] as const;
+export type SupplementUnit = typeof SUPPLEMENT_UNITS[number];
+
+export interface SupplementMacros {
+  amount: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fibre: number;
+}
+
+// One dose/macro revision, effective from a day onward. Appended on every edit
+// so past days keep the amounts that were actually taken.
+export interface SupplementVersion extends SupplementMacros {
+  effectiveFrom: string;   // YYYY-MM-DD
+}
+
+export interface Supplement extends SupplementMacros {
+  id: string;
+  name: string;
+  unit: SupplementUnit | string;
+  startDate: string;         // first day it must be ticked
+  endDate: string | null;    // last required day; null = still active
+  deleted: boolean;          // soft-deleted — history only, no longer required
+  versions: SupplementVersion[];
+}
+
+// One "took it" tick, with the dose in force that day snapshotted onto it.
+export interface SupplementLog extends SupplementMacros {
+  id: string;
+  supplementId: string;
+  date: string;              // YYYY-MM-DD
+}
+
+// Payload for adding a supplement / revising its dose.
+export interface SupplementInput extends SupplementMacros {
+  name: string;
+  unit: SupplementUnit | string;
+}
+
 // Payload for a user-created "Others" dish (values per 100g).
 export interface CustomFoodInput {
   name: string;

@@ -19,20 +19,22 @@ interface DayAgg { calories: number; protein: number; carbs: number; fat: number
 const emptyAgg = (): DayAgg => ({ calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 });
 
 export default function MonthView() {
-  const { logs, weights, targets } = useApp();
+  const { logs, weights, targets, supplementLogs } = useApp();
   const [range, setRange] = useState<MonthRange>('month');
 
-  // Daily totals from all logs
+  // Daily totals from all logs — ticked supplements count toward the day too.
   const dayMap = useMemo(() => {
     const m = new Map<string, DayAgg>();
-    for (const l of logs) {
-      const d = m.get(l.date) ?? emptyAgg();
-      d.calories += l.calories; d.protein += l.protein; d.carbs += l.carbs;
-      d.fat += l.fat; d.fibre += l.fibre;
-      m.set(l.date, d);
-    }
+    const add = (date: string, x: DayAgg) => {
+      const d = m.get(date) ?? emptyAgg();
+      d.calories += x.calories; d.protein += x.protein; d.carbs += x.carbs;
+      d.fat += x.fat; d.fibre += x.fibre;
+      m.set(date, d);
+    };
+    for (const l of logs) add(l.date, l);
+    for (const s of supplementLogs) add(s.date, s);
     return m;
-  }, [logs]);
+  }, [logs, supplementLogs]);
 
   const now = new Date(); now.setHours(0, 0, 0, 0);
 

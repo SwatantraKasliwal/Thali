@@ -62,6 +62,7 @@ rewrites `/api/*` to `API_URL` server-side. Benefits:
    FDC_API_KEY=<your USDA key>
    CLIENT_URL=https://<your-frontend>.vercel.app   # exact origin(s), comma-separated
    REDIS_URL=                                # optional; set only for >1 instance/serverless
+   KEEP_ALIVE_ENABLED=true                   # free tier only — see §3a
    ```
 4. **Run the DB migration** (adds the `token_version` column used for session
    revocation): from `backend/`, `npm run db:push` (or `prisma migrate deploy`
@@ -71,6 +72,45 @@ rewrites `/api/*` to `API_URL` server-side. Benefits:
 
 (Railway / Fly.io / VPS: same env vars; on a VPS just `docker compose up -d --build`
 after pointing `CLIENT_URL` at the real frontend domain.)
+
+---
+
+## 3a. Keeping a free-tier backend awake
+
+Render's free plan spins a web service down after **~15 minutes with no inbound
+request**, and the next visitor then waits ~50s for a cold start. Two layers
+fight that; use both.
+
+**In-process ping** — set on the Render service:
+
+```
+KEEP_ALIVE_ENABLED=true
+KEEP_ALIVE_MINUTES=10     # optional, default 10, must stay under 15
+KEEP_ALIVE_URL=           # optional — Render injects RENDER_EXTERNAL_URL itself
+```
+
+It GETs its own public `/health` every 10 min. The request has to travel through
+Render's router to count as traffic, which is why it targets the public URL and
+not localhost.
+
+**External ping** — `.github/workflows/keep-alive.yml`, already in the repo. Set
+the repo variable `API_URL` to the backend URL (Settings → Secrets and variables
+→ Actions → Variables). This is the layer that matters: the self-ping can only
+keep an awake service awake, while an external hit can also **wake a service
+that has already slept** (after a crash, a failed deploy, or any gap).
+
+Caveats:
+
+- GitHub delays scheduled workflows under load (often 5–15 min late) and turns
+  schedules off after 60 days of repo inactivity. For a hard guarantee, point an
+  uptime monitor (UptimeRobot, cron-job.org, Better Stack — all free at a 5-min
+  interval) at `https://<api>/health` and skip the workflow.
+- Render's free plan bills **750 instance-hours/month**; staying up 24/7 is ~730
+  of them. That covers exactly **one** free service — a second one kept awake
+  will exhaust the quota mid-month.
+- `/health` is unauthenticated and outside `/api`, so it costs one DB-free JSON
+  response and never touches the rate limiter's auth paths.
+- The real fix is Render's $7/mo instance, which never spins down.
 
 ---
 

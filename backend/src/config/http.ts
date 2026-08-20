@@ -60,6 +60,39 @@ export function getJSON<T = unknown>(
   return request<T>(url, 'GET', headers, undefined, timeoutMs);
 }
 
+/**
+ * Fire a GET purely for its side effect of reaching the server — resolves with
+ * the status code whatever the response body or status is. Used by the idle
+ * keep-alive, where a 502 from a still-booting instance is a successful wake,
+ * not a failure, and parsing the body would be wasted work.
+ */
+export function ping(
+  url: string,
+  headers: Record<string, string> = {},
+  timeoutMs = 10000
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method: 'GET',
+        family: 4,
+        timeout: timeoutMs,
+        headers: { Accept: 'application/json', ...headers },
+      },
+      res => {
+        res.resume();                       // drain so the socket can close
+        res.on('end', () => resolve(res.statusCode ?? 0));
+      }
+    );
+    req.on('timeout', () => req.destroy(new Error('Request timed out')));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 export function postJSON<T = unknown>(
   url: string,
   payload: unknown,
