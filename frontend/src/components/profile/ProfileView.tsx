@@ -9,7 +9,11 @@ import { COLORS } from '@/lib/constants';
 import { computeTargets } from '@/lib/nutrition';
 import { allowInteger } from '@/lib/validate';
 import Card from '@/components/ui/Card';
-import Select from '@/components/ui/Select';
+import Dropdown from '@/components/ui/Dropdown';
+import Avatar from '@/components/ui/Avatar';
+import AppearanceCard from '@/components/profile/AppearanceCard';
+import AvatarCard from '@/components/profile/AvatarCard';
+import { useAvatar } from '@/lib/useAvatar';
 import DecimalInput from '@/components/ui/DecimalInput';
 import ReminderCard from '@/components/profile/ReminderCard';
 
@@ -36,12 +40,12 @@ const GOAL_LABELS: Record<Profile['goal'], string> = {
 };
 
 const inputCls  = 'w-24 text-right text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors';
-const selectCls = 'text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors';
 const valueCls  = 'text-sm font-medium text-ink tabular-nums';
 
 export default function ProfileView() {
   const { profile, setProfile, targets, latestWeight, addWeight } = useApp();
   const { user } = useAuth();
+  const { avatarId, setAvatar } = useAvatar();
   const displayName = profile.name || user?.name || user?.email || '—';
 
   const [editing, setEditing] = useState(false);
@@ -137,14 +141,16 @@ export default function ProfileView() {
 
       {/* Identity */}
       <div className="flex items-center gap-3 px-1">
-        <div className="w-11 h-11 rounded-full bg-accent-soft flex items-center justify-center text-primary font-semibold text-base shrink-0">
-          {displayName.charAt(0).toUpperCase()}
-        </div>
+        <Avatar id={avatarId} name={displayName} size={44} />
         <div className="min-w-0">
           <div className="text-sm font-semibold text-ink truncate">{displayName}</div>
           {user?.email && <div className="text-xs text-ink-muted truncate">{user.email}</div>}
         </div>
       </div>
+
+      {/* Picture and theme are only offered while editing — they'd otherwise
+          crowd a page people mostly come to read. */}
+      {editing && <AvatarCard avatarId={avatarId} onPick={setAvatar} name={displayName} />}
 
       <Card className="px-4 py-1">
         <Field label="Name">
@@ -160,10 +166,15 @@ export default function ProfileView() {
         </Field>
         <Field label="Sex">
           {editing ? (
-            <Select value={draft.sex} onChange={e => upd('sex', e.target.value as Profile['sex'])} className={selectCls}>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </Select>
+            <Dropdown
+              ariaLabel="Sex"
+              value={draft.sex}
+              onChange={v => upd('sex', v as Profile['sex'])}
+              options={[
+                { value: 'male',   label: 'Male' },
+                { value: 'female', label: 'Female' },
+              ]}
+            />
           ) : (
             <span className={valueCls}>{profile.sex === 'male' ? 'Male' : 'Female'}</span>
           )}
@@ -194,24 +205,34 @@ export default function ProfileView() {
         </Field>
         <Field label="Activity level">
           {editing ? (
-            <Select value={draft.activityLevel} onChange={e => upd('activityLevel', +e.target.value)} className={selectCls}>
-              <option value={1.2}>Sedentary</option>
-              <option value={1.375}>Lightly active</option>
-              <option value={1.55}>Moderately active</option>
-              <option value={1.725}>Very active</option>
-              <option value={1.9}>Extremely active</option>
-            </Select>
+            <Dropdown
+              ariaLabel="Activity level"
+              value={String(draft.activityLevel)}
+              onChange={v => upd('activityLevel', Number(v))}
+              options={[
+                { value: '1.2',   label: 'Sedentary' },
+                { value: '1.375', label: 'Lightly active' },
+                { value: '1.55',  label: 'Moderately active' },
+                { value: '1.725', label: 'Very active' },
+                { value: '1.9',   label: 'Extremely active' },
+              ]}
+            />
           ) : (
             <span className={valueCls}>{ACTIVITY_LABELS[String(profile.activityLevel)] ?? profile.activityLevel}</span>
           )}
         </Field>
         <Field label="Goal">
           {editing ? (
-            <Select value={draft.goal} onChange={e => upd('goal', e.target.value as Profile['goal'])} className={selectCls}>
-              <option value="cut">Cut (lose weight)</option>
-              <option value="maintain">Maintain</option>
-              <option value="bulk">Bulk (gain weight)</option>
-            </Select>
+            <Dropdown
+              ariaLabel="Goal"
+              value={draft.goal}
+              onChange={v => upd('goal', v as Profile['goal'])}
+              options={[
+                { value: 'cut',      label: 'Cut (lose weight)' },
+                { value: 'maintain', label: 'Maintain' },
+                { value: 'bulk',     label: 'Bulk (gain weight)' },
+              ]}
+            />
           ) : (
             <span className={valueCls}>{GOAL_LABELS[profile.goal]}</span>
           )}
@@ -232,6 +253,9 @@ export default function ProfileView() {
           {logged ? 'Logged' : "Log today's weight"}
         </button>
       </div>
+
+      {/* Theme colour + light/dark */}
+      {editing && <AppearanceCard />}
 
       {/* Nightly meal reminders (Web Push) */}
       <ReminderCard />

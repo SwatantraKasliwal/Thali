@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
+import { APP_VERSION } from '@/lib/version';
 
-const VERSION = 'SK-V3.0.0';
 const AVITA = 'Website Developed & Maintained by Avita Technologies';
 
 /**
@@ -49,7 +49,7 @@ export default function Footer() {
       <p className="text-xs text-ink-muted leading-tight">
         {showAvita ? AVITA : `© ${year} | Thali`}
         <br />
-        {VERSION}
+        {APP_VERSION}
       </p>
     </footer>
   );

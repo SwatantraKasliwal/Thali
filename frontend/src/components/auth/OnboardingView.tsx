@@ -8,13 +8,11 @@ import { Profile } from '@/types';
 import { computeTargets } from '@/lib/nutrition';
 import { allowInteger } from '@/lib/validate';
 import ThemeToggle from '@/components/ui/ThemeToggle';
-import Select from '@/components/ui/Select';
+import Dropdown from '@/components/ui/Dropdown';
 import DecimalInput from '@/components/ui/DecimalInput';
 
 const inputCls =
   'w-28 text-right text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors';
-const selectCls =
-  'text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -81,10 +79,15 @@ export default function OnboardingView() {
               />
             </Field>
             <Field label="Sex">
-              <Select value={form.sex} onChange={e => upd('sex', e.target.value as Profile['sex'])} className={selectCls}>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </Select>
+              <Dropdown
+                ariaLabel="Sex"
+                value={form.sex}
+                onChange={v => upd('sex', v as Profile['sex'])}
+                options={[
+                { value: 'male',   label: 'Male' },
+                { value: 'female', label: 'Female' },
+              ]}
+              />
             </Field>
             <Field label="Age">
               <input type="text" inputMode="numeric" value={form.age} min={10} max={120}
@@ -99,20 +102,30 @@ export default function OnboardingView() {
                 onValueChange={v => upd('weightKg', v)} className={inputCls} required />
             </Field>
             <Field label="Activity level">
-              <Select value={form.activityLevel} onChange={e => upd('activityLevel', +e.target.value)} className={selectCls}>
-                <option value={1.2}>Sedentary</option>
-                <option value={1.375}>Lightly active</option>
-                <option value={1.55}>Moderately active</option>
-                <option value={1.725}>Very active</option>
-                <option value={1.9}>Extremely active</option>
-              </Select>
+              <Dropdown
+                ariaLabel="Activity level"
+                value={String(form.activityLevel)}
+                onChange={v => upd('activityLevel', Number(v))}
+                options={[
+                { value: '1.2',   label: 'Sedentary' },
+                { value: '1.375', label: 'Lightly active' },
+                { value: '1.55',  label: 'Moderately active' },
+                { value: '1.725', label: 'Very active' },
+                { value: '1.9',   label: 'Extremely active' },
+              ]}
+              />
             </Field>
             <Field label="Goal">
-              <Select value={form.goal} onChange={e => upd('goal', e.target.value as Profile['goal'])} className={selectCls}>
-                <option value="cut">Cut (lose weight)</option>
-                <option value="maintain">Maintain</option>
-                <option value="bulk">Bulk (gain weight)</option>
-              </Select>
+              <Dropdown
+                ariaLabel="Goal"
+                value={form.goal}
+                onChange={v => upd('goal', v as Profile['goal'])}
+                options={[
+                { value: 'cut',      label: 'Cut (lose weight)' },
+                { value: 'maintain', label: 'Maintain' },
+                { value: 'bulk',     label: 'Bulk (gain weight)' },
+              ]}
+              />
             </Field>
           </div>
 

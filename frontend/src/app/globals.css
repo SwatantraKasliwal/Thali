@@ -33,6 +33,44 @@
   --danger:        #E06A5C;
 }
 
+/* ── Accent themes ─────────────────────────────────────────────────────────
+   Every token below derives from ONE hue (--h), so a preset (or the custom
+   hue slider in Profile → Appearance) only has to set that number. The default
+   "forest" accent falls through to the hand-tuned brand palette above.       */
+:root[data-accent]:not([data-accent='forest']) {
+  --app:           hsl(var(--h) 30% 96%);
+  --surface:       hsl(var(--h) 44% 99%);
+  --surface-2:     hsl(var(--h) 30% 93%);
+  --line:          hsl(var(--h) 24% 84%);
+  --ink:           hsl(var(--h) 45% 13%);
+  --muted:         hsl(var(--h) 14% 38%);
+  --primary:       hsl(var(--h) 56% 36%);
+  --primary-hover: hsl(var(--h) 58% 29%);
+  --primary-fg:    #FFFFFF;
+  --accent:        hsl(var(--h) 52% 44%);
+  --accent-soft:   hsl(var(--h) 46% 92%);
+}
+
+:root.dark[data-accent]:not([data-accent='forest']) {
+  --app:           hsl(var(--h) 34% 8%);
+  --surface:       hsl(var(--h) 30% 12%);
+  --surface-2:     hsl(var(--h) 26% 17%);
+  --line:          hsl(var(--h) 20% 25%);
+  --ink:           hsl(var(--h) 28% 93%);
+  --muted:         hsl(var(--h) 16% 66%);
+  --primary:       hsl(var(--h) 60% 63%);
+  --primary-hover: hsl(var(--h) 64% 71%);
+  --primary-fg:    hsl(var(--h) 45% 9%);
+  --accent:        hsl(var(--h) 60% 63%);
+  --accent-soft:   hsl(var(--h) 34% 20%);
+}
+
+/* Chart calorie hue — sage on cream, sage on forest; follows a custom accent. */
+:root      { --chart-cal: var(--accent); }
+:root.dark { --chart-cal: var(--primary); }
+/* Hover band behind a bar. */
+:root { --chart-cursor: color-mix(in srgb, var(--chart-cal) 16%, transparent); }
+
 html {
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
@@ -51,20 +89,92 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Component classes live in the components layer so single utilities
+   (absolute, fixed, …) still override them — a glass dropdown has to be
+   able to leave the flow. */
+@layer components {
+  /* ── Liquid glass ──────────────────────────────────────────────────────────
+     Translucent panel that refracts the aurora behind it: a soft vertical tint,
+     a real backdrop blur, a bright top edge and an inner bottom shadow so the
+     panel reads as a thick pane of glass rather than a flat see-through box.   */
+  .glass {
+    position: relative;
+    isolation: isolate;
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--surface) 76%, transparent) 0%,
+        color-mix(in srgb, var(--surface) 52%, transparent) 55%,
+        color-mix(in srgb, var(--surface) 66%, transparent) 100%
+      );
+    backdrop-filter: blur(20px) saturate(165%);
+    -webkit-backdrop-filter: blur(20px) saturate(165%);
+    border: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+    box-shadow:
+      0 10px 30px -18px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent),
+      inset 0 -20px 28px -28px color-mix(in srgb, var(--primary) 70%, transparent);
+  }
+
+  .dark .glass {
+    border-color: color-mix(in srgb, var(--line) 75%, transparent);
+    box-shadow:
+      0 12px 34px -20px rgba(0, 0, 0, 0.8),
+      inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent),
+      inset 0 -20px 30px -28px color-mix(in srgb, var(--primary) 45%, transparent);
+  }
+
+  /* Specular highlight sweeping the top of the pane. */
+  .glass::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 55%;
+    border-radius: inherit;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, #fff 26%, transparent),
+      transparent
+    );
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .dark .glass::before {
+    background: linear-gradient(to bottom, color-mix(in srgb, #fff 7%, transparent), transparent);
+  }
+
+  /* Browsers without backdrop-filter get an opaque card instead of muddy text. */
+  @supports not (backdrop-filter: blur(1px)) {
+    .glass { background: var(--surface); }
+  }
+
+  /* ── Aurora ────────────────────────────────────────────────────────────────
+     Fixed, very soft colour fields behind the whole app. They are what the
+     glass panels actually blur, which is what makes the effect read.           */
+  .aurora {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(52rem 32rem at 8% -6%,  color-mix(in srgb, var(--primary) 26%, transparent), transparent 70%),
+      radial-gradient(44rem 30rem at 96% 12%, color-mix(in srgb, var(--accent)  22%, transparent), transparent 70%),
+      radial-gradient(56rem 36rem at 46% 108%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 72%);
+  }
+
+  .dark .aurora {
+    background:
+      radial-gradient(52rem 32rem at 8% -6%,  color-mix(in srgb, var(--primary) 20%, transparent), transparent 70%),
+      radial-gradient(44rem 30rem at 96% 12%, color-mix(in srgb, var(--accent)  15%, transparent), transparent 70%),
+      radial-gradient(56rem 36rem at 46% 108%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 72%);
+  }
+}
+
 /* Thin scrollbars */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 9999px; }
-
-/* Themed <select> option list (native popup) */
-select option {
-  background-color: var(--surface);
-  color: var(--ink);
-}
-select option:checked {
-  background-color: var(--accent-soft);
-  color: var(--primary);
-}
 
 /* Remove number input arrows */
 input[type='number']::-webkit-inner-spin-button,
@@ -72,3 +182,24 @@ input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;
 }
 input[type='number'] { -moz-appearance: textfield; }
+
+/* Popup animations (dropdowns, update toast, release notes) */
+@keyframes thali-pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes thali-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes thali-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-pop  { animation: thali-pop  140ms ease-out both; }
+.animate-rise { animation: thali-rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade { animation: thali-fade 180ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop, .animate-rise, .animate-fade { animation: none; }
+}

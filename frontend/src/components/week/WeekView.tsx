@@ -2,14 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Cell,
+  BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Cell, LabelList,
 } from 'recharts';
 import { useApp } from '@/context/AppContext';
 import { sumDay } from '@/lib/nutrition';
-import { toISO, addDays, startOfWeek } from '@/lib/dates';
-import { COLORS } from '@/lib/constants';
+import { toISO, addDays, parseISO, startOfWeek, weeksOfMonth } from '@/lib/dates';
+import { COLORS, AXIS_TICK, TOOLTIP_STYLE } from '@/lib/constants';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/ui/StatCard';
+import Dropdown from '@/components/ui/Dropdown';
 import ConsistencyCard from './ConsistencyCard';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -18,22 +19,34 @@ export default function WeekView() {
   const { logs, targets, supplementLogs } = useApp();
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
-  // Current calendar week, Monday → Sunday (not a rolling 7-day window).
+  // Every Mon→Sun week of the current month; weeks that straddle a month
+  // boundary carry the tail of the previous month with them.
+  const weeks = useMemo(() => weeksOfMonth(new Date()), []);
+  const thisWeekISO = toISO(startOfWeek(new Date()));
+  const [weekStart, setWeekStart] = useState(
+    () => weeks.find(w => w.startISO === thisWeekISO)?.startISO ?? weeks[0].startISO
+  );
+  const week = weeks.find(w => w.startISO === weekStart) ?? weeks[0];
+
+  // The selected week, Monday → Sunday.
   const data = useMemo(() => {
-    const monday = startOfWeek(new Date());
+    const monday = parseISO(week.startISO);
     return Array.from({ length: 7 }, (_, i) => {
       const d = addDays(monday, i);
       return {
         name: DAY_NAMES[d.getDay()],
         date: toISO(d),
+        dayLabel: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }),
         ...sumDay(logs, toISO(d), supplementLogs),
       };
     });
-  }, [logs, supplementLogs]);
+  }, [logs, supplementLogs, week.startISO]);
 
   // Toggle a bar: select it, or deselect if it's already selected.
   const toggle = (i: number) => setSelectedIdx(cur => (cur === i ? null : i));
   const sel = selectedIdx != null ? data[selectedIdx] : null;
+
+  const pickWeek = (iso: string) => { setWeekStart(iso); setSelectedIdx(null); };
 
   const logged = data.filter(d => d.calories > 0);
   const avgCal = logged.length
@@ -44,20 +57,40 @@ export default function WeekView() {
     : 0;
   const onTarget = logged.filter(d => Math.abs(d.calories - targets.cal) <= targets.cal * 0.15).length;
 
+  // Headroom above the tallest bar so the printed value never clips.
+  const peak = Math.max(targets.cal, ...data.map(d => d.calories));
+
   return (
     <div className="space-y-4">
-      <h2 className="text-base font-semibold text-ink">This week</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-base font-semibold text-ink">
+          {week.startISO === thisWeekISO ? 'This week' : week.label}
+        </h2>
+        <Dropdown
+          ariaLabel="Select week"
+          value={week.startISO}
+          onChange={pickWeek}
+          options={weeks.map(w => ({ value: w.startISO, label: w.label, hint: w.range }))}
+        />
+      </div>
 
-      <Card className="p-4">
-        <div className="text-xs font-medium text-ink-muted mb-3">Daily calories vs target</div>
-        <div className="h-48">
+      <Card glass className="p-4">
+        <div className="flex items-baseline justify-between gap-2 mb-3">
+          <span className="text-xs font-medium text-ink-muted">Daily calories vs target</span>
+          <span className="text-[11px] text-ink-muted tabular-nums">{week.range}</span>
+        </div>
+        <div className="h-52">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#8F9870' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#8F9870' }} axisLine={false} tickLine={false} />
+            <BarChart data={data} margin={{ top: 20, right: 6, left: -18, bottom: 0 }}>
+              <XAxis dataKey="name" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} domain={[0, Math.ceil(peak * 1.12)]} />
               <Tooltip
-                cursor={{ fill: 'rgba(133,169,71,0.15)' }}
-                contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 12 }}
+                cursor={{ fill: 'var(--chart-cursor)' }}
+                contentStyle={TOOLTIP_STYLE}
+                labelStyle={{ color: 'var(--ink)', fontWeight: 600 }}
+                itemStyle={{ color: 'var(--ink)' }}
+                labelFormatter={(_, payload) => payload?.[0]?.payload?.dayLabel ?? ''}
+                formatter={(v: number) => [`${Math.round(v)} kcal`, 'Calories']}
               />
               <ReferenceLine y={targets.cal} stroke={COLORS.cal} strokeDasharray="4 4" />
               <Bar
@@ -76,6 +109,15 @@ export default function WeekView() {
                     />
                   );
                 })}
+                {/* The number every bar is actually about — printed, not hovered for. */}
+                <LabelList
+                  dataKey="calories"
+                  position="top"
+                  offset={6}
+                  className="fill-ink"
+                  style={{ fontSize: 10, fontWeight: 600 }}
+                  formatter={(v: number) => (v > 0 ? Math.round(v) : '')}
+                />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -90,7 +132,7 @@ export default function WeekView() {
 
       <ConsistencyCard />
 
-      <Card className="p-4">
+      <Card glass className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs font-medium text-ink-muted">
             {sel ? `Macro breakdown — ${sel.name}` : 'Macro breakdown (avg)'}

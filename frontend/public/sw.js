@@ -3,7 +3,7 @@
 // v4 makes navigations network-first: cache-first on the HTML shell pinned an
 // installed PWA to whatever build it first saw, so shipped UI changes never
 // arrived. Bump CACHE on every release that must invalidate the shell.
-const CACHE = 'thali-v4';
+const CACHE = 'thali-v7';
 const PRECACHE = ['/', '/manifest.json'];
 
 self.addEventListener('install', e => {

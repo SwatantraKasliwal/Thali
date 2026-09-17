@@ -1,11 +1,17 @@
 interface CardProps {
   children: React.ReactNode;
   className?: string;
+  /** Liquid-glass panel instead of the solid surface — used by charts and meals. */
+  glass?: boolean;
 }
 
-export default function Card({ children, className = '' }: CardProps) {
+export default function Card({ children, className = '', glass = false }: CardProps) {
   return (
-    <div className={`bg-surface rounded-2xl border border-line shadow-sm ${className}`}>
+    <div
+      className={`rounded-2xl shadow-sm ${
+        glass ? 'glass' : 'bg-surface border border-line'
+      } ${className}`}
+    >
       {children}
     </div>
   );

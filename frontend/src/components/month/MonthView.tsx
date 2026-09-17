@@ -7,12 +7,12 @@ import {
 } from 'recharts';
 import { useApp } from '@/context/AppContext';
 import { parseISO, toISO } from '@/lib/dates';
-import { COLORS } from '@/lib/constants';
+import { COLORS, AXIS_TICK, TOOLTIP_STYLE } from '@/lib/constants';
 import { MonthRange } from '@/types';
 import Card from '@/components/ui/Card';
-import Select from '@/components/ui/Select';
+import Dropdown from '@/components/ui/Dropdown';
 
-const WEIGHT_COLOR = '#3E7B27';
+const WEIGHT_COLOR = 'var(--primary)';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 interface DayAgg { calories: number; protein: number; carbs: number; fat: number; fibre: number }
@@ -147,7 +147,16 @@ export default function MonthView() {
     { name: 'Fibre',   value: avg.fibre,   color: COLORS.fibre },
   ];
 
-  const tooltipStyle = { borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 12 };
+  const tooltipStyle = TOOLTIP_STYLE;
+
+  const RANGES: { value: MonthRange; label: string }[] = [
+    { value: 'month',     label: 'This month' },
+    { value: 'lastMonth', label: 'Last month' },
+    { value: '3m',        label: 'Last 3 months' },
+    { value: '6m',        label: 'Last 6 months' },
+    { value: 'year',      label: 'This year' },
+    { value: 'all',       label: 'Till now' },
+  ];
 
   const stats: [string, number | string, string][] = [
     ['Calories', avg.calories, COLORS.cal],
@@ -163,32 +172,26 @@ export default function MonthView() {
       {/* Header + range dropdown */}
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-semibold text-ink">{headerLabel}</h2>
-        <Select
+        <Dropdown
+          ariaLabel="Select range"
           value={range}
-          onChange={e => setRange(e.target.value as MonthRange)}
-          className="text-sm text-ink bg-surface-2 rounded-lg pl-3 py-1.5 outline-none border border-line focus:border-primary"
-        >
-          <option value="month">This month</option>
-          <option value="lastMonth">Last month</option>
-          <option value="3m">Last 3 months</option>
-          <option value="6m">Last 6 months</option>
-          <option value="year">This year</option>
-          <option value="all">Till now</option>
-        </Select>
+          onChange={v => setRange(v as MonthRange)}
+          options={RANGES.map(r => ({ value: r.value, label: r.label }))}
+        />
       </div>
 
       {/* Calorie trend */}
-      <Card className="p-4">
+      <Card glass className="p-4">
         <div className="text-xs font-medium text-ink-muted mb-3">
           {isDaily ? 'Daily calories' : 'Avg daily calories / month'}
         </div>
         <div className="h-44">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={trend} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#8F9870' }} axisLine={false} tickLine={false}
+              <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}
                 interval={isDaily ? 4 : 0} />
-              <YAxis tick={{ fontSize: 10, fill: '#8F9870' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} />
+              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--ink)', fontWeight: 600 }} itemStyle={{ color: 'var(--ink)' }} />
               <ReferenceLine y={targets.cal} stroke={COLORS.cal} strokeDasharray="4 4" />
               <Area type="monotone" dataKey="calories" stroke={COLORS.cal} fill={COLORS.cal} fillOpacity={0.14} strokeWidth={2} />
             </AreaChart>
@@ -197,16 +200,16 @@ export default function MonthView() {
       </Card>
 
       {/* Weight trend — lifetime */}
-      <Card className="p-4">
+      <Card glass className="p-4">
         <div className="text-xs font-medium text-ink-muted mb-3">Weight trend · all time</div>
         <div className="h-40">
           {weightSeries.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={weightSeries} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#8F9870' }} axisLine={false} tickLine={false}
+                <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}
                   interval="preserveStartEnd" minTickGap={24} />
-                <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={{ fontSize: 10, fill: '#8F9870' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--ink)', fontWeight: 600 }} itemStyle={{ color: 'var(--ink)' }} />
                 <Line type="monotone" dataKey="weight" stroke={WEIGHT_COLOR} strokeWidth={2} dot={{ r: 3, fill: WEIGHT_COLOR }} />
               </LineChart>
             </ResponsiveContainer>
@@ -220,7 +223,7 @@ export default function MonthView() {
 
       {/* Macro split + averages */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="p-4">
+        <Card glass className="p-4">
           <div className="text-xs font-medium text-ink-muted mb-1">Avg macro split (g)</div>
           <div className="h-32">
             {avg.logged > 0 ? (
@@ -229,7 +232,7 @@ export default function MonthView() {
                   <Pie data={macroData} dataKey="value" innerRadius={28} outerRadius={48} paddingAngle={2}>
                     {macroData.map((m, i) => <Cell key={i} fill={m.color} />)}
                   </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--ink)', fontWeight: 600 }} itemStyle={{ color: 'var(--ink)' }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -246,7 +249,7 @@ export default function MonthView() {
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card glass className="p-4">
           <div className="text-xs font-medium text-ink-muted mb-3">Averages ({avg.logged} days)</div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-3">
             {stats.map(([label, value, color]) => (
