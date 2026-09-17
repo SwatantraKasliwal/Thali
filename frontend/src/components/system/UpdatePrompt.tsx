@@ -50,22 +50,22 @@ export default function UpdatePrompt() {
   if (!ready || hidden) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pointer-events-none">
-      <div className="glass animate-rise pointer-events-auto flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-2.5 shadow-lg">
+    <div className="fixed inset-x-0 bottom-safe-4 z-50 flex justify-center px-4 pointer-events-none">
+      <div className="glass animate-rise pointer-events-auto flex w-full max-w-md items-center gap-2 rounded-2xl py-2.5 pl-4 pr-2.5 shadow-lg">
         <RefreshCw size={16} className="shrink-0 text-primary" />
-        <p className="text-sm text-ink">
+        <p className="min-w-0 flex-1 text-sm text-ink">
           A new version is ready — reload to apply it.
         </p>
         <button
           onClick={() => window.location.reload()}
-          className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:bg-primary-hover transition-colors"
+          className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:bg-primary-hover transition-colors"
         >
           Reload
         </button>
         <button
           onClick={() => setHidden(true)}
           aria-label="Dismiss"
-          className="rounded-lg p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink transition-colors"
+          className="shrink-0 rounded-lg p-1.5 text-ink-muted hover:bg-surface-2 hover:text-ink transition-colors"
         >
           <X size={15} />
         </button>

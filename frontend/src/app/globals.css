@@ -74,12 +74,28 @@
 html {
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
-  font-size: 17px;              /* larger, more readable base type across the app */
+
+  /* Fluid base type. 17px from ~390px wide upward (unchanged on every normal
+     phone and desktop), easing down to 15px on 320px handsets so dense rows
+     have room instead of spilling.
+
+     There is deliberately NO display-mode bump here: an installed PWA used to
+     render at 18px, ~6% larger than anything a browser could reproduce, which
+     is exactly why layouts that tested fine broke once installed. */
+  font-size: clamp(15px, 4.35vw, 17px);
+
+  /* iOS otherwise inflates text in landscape, widening rows unpredictably. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
-/* Installed PWA (standalone) — bump the base a touch more for comfort on phones */
-@media (display-mode: standalone) {
-  html { font-size: 18px; }
+/* Safe-area insets, exposed once so components can build on them. Non-zero on
+   notched / rounded / gesture-bar devices, and only ever in standalone. */
+:root {
+  --sa-top:    env(safe-area-inset-top, 0px);
+  --sa-bottom: env(safe-area-inset-bottom, 0px);
+  --sa-left:   env(safe-area-inset-left, 0px);
+  --sa-right:  env(safe-area-inset-right, 0px);
 }
 
 body {
@@ -87,6 +103,29 @@ body {
   color: var(--ink);
   @apply font-sans antialiased;
   overscroll-behavior-y: none;
+  /* Long dish and supplement names wrap instead of widening the page. */
+  overflow-wrap: break-word;
+}
+
+/* Nothing may scroll the page sideways. `clip` rather than `hidden` so the
+   sticky header keeps working (hidden would turn html into a scroll container). */
+@supports (overflow: clip) {
+  html { overflow-x: clip; }
+}
+
+img, video, canvas { max-width: 100%; height: auto; }
+
+/* Page gutter: never less than the design margin, wider when a rounded or
+   notched screen asks for it. One class so nothing competes for padding-inline. */
+.page-gutter {
+  padding-left:  max(1rem, var(--sa-left));
+  padding-right: max(1rem, var(--sa-right));
+}
+@media (min-width: 1024px) {
+  .page-gutter {
+    padding-left:  max(2rem, var(--sa-left));
+    padding-right: max(2rem, var(--sa-right));
+  }
 }
 
 /* Component classes live in the components layer so single utilities
@@ -202,4 +241,24 @@ input[type='number'] { -moz-appearance: textfield; }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-pop, .animate-rise, .animate-fade { animation: none; }
+}
+
+/* ── Safe-area helpers ─────────────────────────────────────────────────────
+   Installed PWAs draw edge to edge under the status bar and gesture bar, so
+   anything pinned to an edge adds the inset to its own padding/offset. */
+@layer utilities {
+  .pt-safe { padding-top: var(--sa-top); }
+  .pb-safe { padding-bottom: var(--sa-bottom); }
+  .px-safe { padding-left: var(--sa-left); padding-right: var(--sa-right); }
+  .inset-safe-x { margin-left: var(--sa-left); margin-right: var(--sa-right); }
+  /* Pinned elements: the base offset plus the device inset. */
+  .bottom-safe-2 { bottom: calc(0.5rem + var(--sa-bottom)); }
+  .bottom-safe-4 { bottom: calc(1rem + var(--sa-bottom)); }
+  .right-safe-3  { right: calc(0.75rem + var(--sa-right)); }
+  /* Full viewport height that follows mobile browser chrome. */
+  .min-h-dvh-safe { min-height: 100vh; }
+}
+
+@supports (height: 100dvh) {
+  .min-h-dvh-safe { min-height: 100dvh; }
 }

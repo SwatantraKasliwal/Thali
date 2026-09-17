@@ -67,7 +67,7 @@ export default function Dropdown({
   const pick = (v: string) => { onChange(v); setOpen(false); };
 
   return (
-    <div ref={wrapRef} className={`relative ${fullWidth ? 'block' : 'inline-block'}`}>
+    <div ref={wrapRef} className={`relative max-w-full ${fullWidth ? 'block' : 'inline-block'}`}>
       <button
         type="button"
         disabled={disabled}
@@ -75,13 +75,13 @@ export default function Dropdown({
         aria-expanded={open}
         aria-label={ariaLabel}
         onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-2 rounded-xl border border-line bg-surface-2 pl-3 pr-2.5 py-1.5 text-sm font-medium text-ink outline-none transition-colors hover:border-primary focus-visible:border-primary disabled:opacity-50 ${
+        className={`flex max-w-full items-center gap-2 rounded-xl border border-line bg-surface-2 pl-3 pr-2.5 py-1.5 text-sm font-medium text-ink outline-none transition-colors hover:border-primary focus-visible:border-primary disabled:opacity-50 ${
           fullWidth ? 'w-full justify-between' : ''
         } ${
           open ? 'border-primary' : ''
         } ${className}`}
       >
-        <span className="truncate">{selected?.label ?? ''}</span>
+        <span className="min-w-0 truncate">{selected?.label ?? ''}</span>
         <ChevronDown
           size={14}
           className={`shrink-0 text-ink-muted transition-transform ${open ? 'rotate-180' : ''}`}
@@ -92,7 +92,7 @@ export default function Dropdown({
         <div
           ref={listRef}
           role="listbox"
-          className={`glass animate-pop absolute z-40 min-w-full max-h-72 overflow-y-auto rounded-xl p-1 ${
+          className={`glass animate-pop absolute z-40 min-w-full max-h-72 w-max max-w-[min(20rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-xl p-1 ${
             align === 'right' ? 'right-0' : 'left-0'
           } ${drop === 'up' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}
         >
@@ -106,11 +106,11 @@ export default function Dropdown({
                 aria-selected={active}
                 data-active={active}
                 onClick={() => pick(o.value)}
-                className={`flex w-full items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   active ? 'bg-accent-soft text-primary font-semibold' : 'text-ink hover:bg-surface-2'
                 }`}
               >
-                <span className="flex-1">
+                <span className="min-w-0 flex-1">
                   {o.label}
                   {o.hint && (
                     <span className={`block text-[11px] font-normal ${active ? 'text-primary' : 'text-ink-muted'}`}>

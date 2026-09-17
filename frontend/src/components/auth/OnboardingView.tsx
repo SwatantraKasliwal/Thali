@@ -12,13 +12,13 @@ import Dropdown from '@/components/ui/Dropdown';
 import DecimalInput from '@/components/ui/DecimalInput';
 
 const inputCls =
-  'w-28 text-right text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors';
+  'w-28 max-w-full min-w-0 text-right text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-line last:border-0">
-      <span className="text-sm text-ink-muted">{label}</span>
-      {children}
+    <div className="flex items-center justify-between gap-3 py-3 border-b border-line last:border-0">
+      <span className="text-sm text-ink-muted shrink-0">{label}</span>
+      <div className="flex min-w-0 justify-end">{children}</div>
     </div>
   );
 }
@@ -55,7 +55,7 @@ export default function OnboardingView() {
   };
 
   return (
-    <div className="min-h-screen bg-app px-4 py-8 flex flex-col items-center">
+    <div className="min-h-dvh-safe bg-app py-8 flex flex-col items-center page-gutter">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>

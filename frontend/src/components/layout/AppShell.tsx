@@ -22,12 +22,12 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
 
 function Logo() {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2.5 min-w-0">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo.svg" alt="Thali" className="w-9 h-9 rounded-xl shrink-0" />
-      <div>
-        <h1 className="font-brand text-base font-bold text-ink leading-tight tracking-wide">Thali</h1>
-        <p className="text-xs text-ink-muted leading-tight">calorie &amp; macro tracker</p>
+      <div className="min-w-0">
+        <h1 className="font-brand text-base font-bold text-ink leading-tight tracking-wide truncate">Thali</h1>
+        <p className="text-xs text-ink-muted leading-tight truncate">calorie &amp; macro tracker</p>
       </div>
     </div>
   );
@@ -54,12 +54,12 @@ export default function AppShell() {
     );
 
   return (
-    <div className="min-h-screen bg-app flex">
+    <div className="min-h-dvh-safe bg-app flex">
       {/* Soft colour fields behind everything — gives the glass something to blur. */}
       <div aria-hidden className="aurora" />
 
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:fixed lg:inset-y-0 bg-surface border-r border-line z-20">
+      <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:fixed lg:inset-y-0 bg-surface border-r border-line z-20 pt-safe pb-safe">
         <div className="px-5 py-5 border-b border-line">
           <Logo />
         </div>
@@ -92,13 +92,13 @@ export default function AppShell() {
       </aside>
 
       {/* ── Main area ── */}
-      <div className="relative z-10 flex-1 lg:ml-60 flex flex-col min-h-screen">
+      <div className="relative z-10 flex-1 lg:ml-60 flex flex-col min-h-dvh-safe min-w-0">
 
         {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-10 bg-surface border-b border-line">
-          <div className="flex items-center justify-between px-4 py-3">
+        <header className="lg:hidden sticky top-0 z-10 bg-surface border-b border-line pt-safe px-safe">
+          <div className="flex items-center justify-between gap-2 px-4 py-3">
             <Logo />
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <StreakBadge className="mr-0.5" />
               <ThemeToggle />
               <button
@@ -138,7 +138,7 @@ export default function AppShell() {
         </div>
 
         {/* Content */}
-        <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-4 pb-10 lg:px-8 lg:py-6">
+        <main className="flex-1 w-full max-w-2xl mx-auto py-4 pb-16 lg:py-6 page-gutter">
           {tab === 'today'   && <TodayView />}
           {tab === 'week'    && <WeekView />}
           {tab === 'month'   && <MonthView />}
