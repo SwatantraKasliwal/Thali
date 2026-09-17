@@ -7,6 +7,8 @@ import OnboardingView from '@/components/auth/OnboardingView';
 import AppShell from '@/components/layout/AppShell';
 import Footer from '@/components/ui/Footer';
 import WeightPrompt from '@/components/weight/WeightPrompt';
+import UpdatePrompt from '@/components/system/UpdatePrompt';
+import ReleaseNotes from '@/components/system/ReleaseNotes';
 
 export default function AppRoot() {
   const { user, ready } = useAuth();
@@ -33,6 +35,9 @@ export default function AppRoot() {
       {content}
       {inApp && <WeightPrompt />}
       <Footer />
+      {/* "New version ready" nudge, then the what's-new summary after the reload. */}
+      <UpdatePrompt />
+      <ReleaseNotes />
     </>
   );
 }

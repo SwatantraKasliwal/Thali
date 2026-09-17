@@ -5,8 +5,10 @@ import { Flame } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { buildConsistency, currentStreak, flameTier } from '@/lib/consistency';
 
-// Warmer hue as the streak climbs through each 7-day tier. RGB triplets feed the rgba() glow.
-const TIER_RGB = ['', '224,161,27', '249,115,22', '239,68,68', '220,38,38'];
+// The flame runs hotter as the streak grows: amber → orange → red → crimson →
+// blue (the hottest part of a real flame). Index matches flameTier(); RGB
+// triplets feed the rgba() glow.
+const TIER_RGB = ['', '240,180,41', '249,115,22', '239,68,68', '220,38,38', '56,189,248'];
 
 export default function StreakBadge({ className = '' }: { className?: string }) {
   const { logs, fasts, supplements, supplementLogs } = useApp();
@@ -19,45 +21,31 @@ export default function StreakBadge({ className = '' }: { className?: string }) 
   // streak 0 → no badge at all (per spec)
   if (streak < 1) return null;
 
-  const rgb = TIER_RGB[flameTier(streak)];   // tier 1‥4
+  const rgb = TIER_RGB[flameTier(streak)];   // tier 1‥5
   const i   = Math.min(streak / 30, 1);      // glow ramps to full at 30 days
 
   return (
     <div
       title={
         `${streak}-day streak — log Breakfast, Lunch & Dinner (or fast) every day to keep it alive` +
-        (supplements.some(s => !s.deleted) ? ', and tick every supplement you\u2019re due' : '')
+        (supplements.some(s => !s.deleted) ? ', and tick every supplement you’re due' : '')
       }
       aria-label={`${streak} day streak`}
-      className={`relative inline-flex items-center gap-1.5 h-9 pl-2 pr-2.5 rounded-xl border overflow-hidden backdrop-blur-md ${className}`}
-      style={{
-        background: `linear-gradient(145deg, rgba(${rgb},${0.28 + 0.24 * i}), rgba(${rgb},${0.12 + 0.14 * i}))`,
-        borderColor: `rgba(${rgb},${0.55 + 0.35 * i})`,
-        boxShadow: [
-          `0 0 ${8 + 16 * i}px ${1 + 3 * i}px rgba(${rgb},${0.3 + 0.4 * i})`,
-          `inset 0 1px 0 rgba(255,255,255,0.4)`,
-          `inset 0 -8px 12px -8px rgba(${rgb},0.7)`,
-        ].join(', '),
-      }}
+      // Chassis stays quiet — only the flame burns.
+      className={`inline-flex items-center gap-1.5 h-9 pl-2 pr-2.5 rounded-xl border border-line bg-surface-2 ${className}`}
     >
-      {/* glass sheen */}
-      <span
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-1/2 rounded-t-xl pointer-events-none"
-        style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.28), rgba(255,255,255,0))' }}
-      />
       <Flame
         size={16}
         strokeWidth={2.5}
-        className="relative shrink-0"
-        style={{ color: `rgb(${rgb})`, fill: `rgba(${rgb},0.35)` }}
+        className="shrink-0"
+        style={{
+          color: `rgb(${rgb})`,
+          fill: `rgba(${rgb},${0.25 + 0.35 * i})`,
+          filter: `drop-shadow(0 0 ${3 + 5 * i}px rgba(${rgb},${0.55 + 0.4 * i}))`
+                + ` drop-shadow(0 0 ${8 + 12 * i}px rgba(${rgb},${0.3 + 0.35 * i}))`,
+        }}
       />
-      <span
-        className="relative text-sm font-extrabold tabular-nums leading-none"
-        style={{ color: `rgb(${rgb})`, textShadow: '0 1px 1px rgba(0,0,0,0.15)' }}
-      >
-        {streak}
-      </span>
+      <span className="text-sm font-bold tabular-nums leading-none text-ink">{streak}</span>
     </div>
   );
 }

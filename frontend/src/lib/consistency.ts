@@ -120,8 +120,15 @@ export function missingOn(c: Consistency, iso: string): string[] {
   return out;
 }
 
-/** Flame tier for a streak: 0 = none, then escalates every 7 days (capped). */
+/**
+ * Flame tier for a streak — drives the colour of the glow on the badge.
+ * 0 none · 1 = 1–6d · 2 = 1 week · 3 = 2 weeks · 4 = 1 month · 5 = 2 months+.
+ */
 export function flameTier(streak: number): number {
-  if (streak < 1) return 0;
-  return Math.min(1 + Math.floor(streak / 7), 4);
+  if (streak < 1)  return 0;
+  if (streak < 7)  return 1;
+  if (streak < 14) return 2;
+  if (streak < 30) return 3;
+  if (streak < 60) return 4;
+  return 5;
 }

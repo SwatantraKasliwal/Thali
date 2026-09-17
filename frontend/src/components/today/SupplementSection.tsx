@@ -6,6 +6,7 @@ import { Supplement, SupplementLog, SUPPLEMENT_UNITS } from '@/types';
 import { allowDecimals } from '@/lib/validate';
 import { supplementsDueOn } from '@/lib/consistency';
 import { useApp } from '@/context/AppContext';
+import Dropdown from '@/components/ui/Dropdown';
 
 interface Props {
   date: string;                       // the day being viewed
@@ -132,10 +133,7 @@ export default function SupplementSection({ date, supplements, supplementLogs }:
   };
 
   return (
-    <div
-      className="rounded-2xl p-4 shadow-sm backdrop-blur-sm"
-      style={{ background: 'color-mix(in srgb, var(--surface) 55%, transparent)' }}
-    >
+    <div className="glass rounded-2xl p-4 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div>
@@ -244,13 +242,15 @@ export default function SupplementSection({ date, supplements, supplementLogs }:
             </label>
             <label className="block">
               <span className="text-[11px] text-ink-muted">Unit</span>
-              <select
+              <Dropdown
+                fullWidth
+                align="left"
+                ariaLabel="Unit"
                 value={draft.unit}
-                onChange={e => set('unit', e.target.value)}
-                className={inputCls}
-              >
-                {SUPPLEMENT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
+                onChange={v => set('unit', v)}
+                options={SUPPLEMENT_UNITS.map(u => ({ value: u, label: u }))}
+                className="mt-1"
+              />
             </label>
             {([
               ['calories', 'Calories'],

@@ -53,7 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('thali_theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var r=document.documentElement;r.classList.toggle('dark',t==='dark');r.style.colorScheme=t;}catch(e){}})();`,
+            __html: `(function(){try{var r=document.documentElement;var t=localStorage.getItem('thali_theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}r.classList.toggle('dark',t==='dark');r.style.colorScheme=t;var a=localStorage.getItem('thali_accent')||'forest';var h=parseInt(localStorage.getItem('thali_accent_hue'),10);r.setAttribute('data-accent',a);r.style.setProperty('--h',String(isNaN(h)?205:h));}catch(e){}})();`,
           }}
         />
       </head>

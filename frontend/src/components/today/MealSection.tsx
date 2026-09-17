@@ -151,11 +151,7 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
   const customInput = 'w-full bg-surface-2 rounded-lg border border-line px-2.5 py-2 text-sm text-ink outline-none focus:border-primary transition-colors';
 
   return (
-    // Glassy meal card: slight blur + translucent surface, no border.
-    <div
-      className="rounded-2xl p-4 shadow-sm backdrop-blur-sm"
-      style={{ background: 'color-mix(in srgb, var(--surface) 55%, transparent)' }}
-    >
+    <div className="glass rounded-2xl p-4 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div>

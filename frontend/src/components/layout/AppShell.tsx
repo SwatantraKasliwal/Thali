@@ -10,6 +10,8 @@ import MonthView from '@/components/month/MonthView';
 import ProfileView from '@/components/profile/ProfileView';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import StreakBadge from '@/components/ui/StreakBadge';
+import Avatar from '@/components/ui/Avatar';
+import { useAvatar } from '@/lib/useAvatar';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'today',   label: 'Today',   icon: Flame },
@@ -32,12 +34,30 @@ function Logo() {
 }
 
 export default function AppShell() {
-  const { tab, setTab } = useApp();
+  const { tab, setTab, profile } = useApp();
   const { user, logout } = useAuth();
+  const { avatarId } = useAvatar();
   const activeLabel = TABS.find(t => t.id === tab)?.label ?? '';
+  const displayName = profile.name || user?.name || user?.email || '';
+
+  // The Profile tab shows who you picked to be, not a generic person glyph.
+  const tabIcon = (id: TabId, Icon: React.ElementType, active: boolean, size: number) =>
+    id === 'profile' ? (
+      <Avatar
+        id={avatarId}
+        name={displayName}
+        size={size + 3}
+        className={active ? 'rounded-full ring-2 ring-primary' : ''}
+      />
+    ) : (
+      <Icon size={size} strokeWidth={active ? 2.5 : 2} />
+    );
 
   return (
     <div className="min-h-screen bg-app flex">
+      {/* Soft colour fields behind everything — gives the glass something to blur. */}
+      <div aria-hidden className="aurora" />
+
       {/* ── Desktop sidebar ── */}
       <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:fixed lg:inset-y-0 bg-surface border-r border-line z-20">
         <div className="px-5 py-5 border-b border-line">
@@ -54,7 +74,7 @@ export default function AppShell() {
                   : 'text-ink-muted hover:bg-surface-2 hover:text-ink'
               }`}
             >
-              <Icon size={19} strokeWidth={tab === id ? 2.5 : 2} />
+              {tabIcon(id, Icon, tab === id, 19)}
               {label}
             </button>
           ))}
@@ -72,7 +92,7 @@ export default function AppShell() {
       </aside>
 
       {/* ── Main area ── */}
-      <div className="flex-1 lg:ml-60 flex flex-col min-h-screen">
+      <div className="relative z-10 flex-1 lg:ml-60 flex flex-col min-h-screen">
 
         {/* Mobile header */}
         <header className="lg:hidden sticky top-0 z-10 bg-surface border-b border-line">
@@ -101,7 +121,7 @@ export default function AppShell() {
                     : 'text-ink-muted border-transparent'
                 }`}
               >
-                <Icon size={19} strokeWidth={tab === id ? 2.4 : 2} />
+                {tabIcon(id, Icon, tab === id, 19)}
                 {label}
               </button>
             ))}
