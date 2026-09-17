@@ -56,8 +56,11 @@ export default function WeightPrompt() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-xs bg-surface rounded-2xl border border-line shadow-xl p-5">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      style={{ paddingTop: 'max(1rem, var(--sa-top))', paddingBottom: 'max(1rem, var(--sa-bottom))' }}
+    >
+      <div className="w-full max-w-xs max-h-full overflow-y-auto bg-surface rounded-2xl border border-line shadow-xl p-5">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <span className="w-9 h-9 rounded-xl bg-accent-soft flex items-center justify-center text-primary">

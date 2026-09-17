@@ -22,6 +22,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // `cover` lets the app paint edge to edge; every pinned element then adds the
+  // matching env(safe-area-inset-*) so nothing hides under a notch or the
+  // gesture bar. Without it those insets always resolve to 0.
+  viewportFit: 'cover',
   maximumScale: 1,
   userScalable: false,
   themeColor: '#3E7B27',

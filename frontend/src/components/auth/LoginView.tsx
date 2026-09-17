@@ -80,7 +80,7 @@ export default function LoginView() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-app px-4">
+    <div className="min-h-dvh-safe flex flex-col items-center justify-center bg-app page-gutter">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>

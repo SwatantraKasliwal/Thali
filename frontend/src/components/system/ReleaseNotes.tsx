@@ -33,6 +33,10 @@ export default function ReleaseNotes() {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      style={{
+        paddingTop:    'max(1rem, var(--sa-top))',
+        paddingBottom: 'max(1rem, var(--sa-bottom))',
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="release-notes-title"
@@ -42,7 +46,7 @@ export default function ReleaseNotes() {
         onClick={close}
         className="animate-fade absolute inset-0 bg-black/45 backdrop-blur-[2px]"
       />
-      <div className="glass animate-rise relative w-full max-w-md rounded-2xl p-5 shadow-2xl">
+      <div className="glass animate-rise relative flex max-h-full w-full max-w-md flex-col rounded-2xl p-5 shadow-2xl">
         <button
           onClick={close}
           aria-label="Close"
@@ -59,7 +63,7 @@ export default function ReleaseNotes() {
           {release.title}
         </h2>
 
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
           {release.notes.map(note => (
             <li key={note} className="flex gap-2 text-sm text-ink-muted">
               <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
@@ -70,7 +74,7 @@ export default function ReleaseNotes() {
 
         <button
           onClick={close}
-          className="mt-5 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-fg hover:bg-primary-hover transition-colors"
+          className="mt-5 w-full shrink-0 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-fg hover:bg-primary-hover transition-colors"
         >
           Got it
         </button>

@@ -124,7 +124,7 @@ export default function WeekView() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <StatCard label="Avg calories" value={avgCal} sub={`target ${targets.cal}`} />
         <StatCard label="Avg protein" value={`${avgPro}g`} sub={`target ${targets.protein}g`} color={COLORS.protein} />
         <StatCard label="On target" value={`${onTarget}/${logged.length}`} sub="days" color={COLORS.cal} />

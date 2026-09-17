@@ -154,13 +154,13 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
     <div className="glass rounded-2xl p-4 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold text-ink">{meal}</h3>
           <span className="text-xs text-ink-muted tabular-nums">
             {total} kcal{isFasting && ' · fasting'}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {onToggleFast && (
             <button
               onClick={onToggleFast}

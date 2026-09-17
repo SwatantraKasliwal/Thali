@@ -19,9 +19,9 @@ import ReminderCard from '@/components/profile/ReminderCard';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-line last:border-0">
-      <span className="text-sm text-ink-muted">{label}</span>
-      {children}
+    <div className="flex items-center justify-between gap-3 py-3 border-b border-line last:border-0">
+      <span className="text-sm text-ink-muted shrink-0">{label}</span>
+      <div className="flex min-w-0 justify-end">{children}</div>
     </div>
   );
 }
@@ -39,7 +39,7 @@ const GOAL_LABELS: Record<Profile['goal'], string> = {
   bulk: 'Bulk (gain weight)',
 };
 
-const inputCls  = 'w-24 text-right text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors';
+const inputCls  = 'w-24 max-w-full min-w-0 text-right text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors';
 const valueCls  = 'text-sm font-medium text-ink tabular-nums';
 
 export default function ProfileView() {
@@ -158,7 +158,7 @@ export default function ProfileView() {
             <input
               type="text" value={draft.name ?? ''} placeholder="Your name" maxLength={80}
               onChange={e => upd('name', e.target.value)}
-              className="w-40 text-right text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors"
+              className="w-40 max-w-full min-w-0 text-right text-sm text-ink bg-surface-2 rounded-lg px-2 py-1.5 outline-none border border-line focus:border-primary transition-colors"
             />
           ) : (
             <span className={valueCls}>{profile.name || '—'}</span>
@@ -281,8 +281,8 @@ export default function ProfileView() {
             ['Fat',     shownTargets.fat,     COLORS.fat],
             ['Fibre',   shownTargets.fibre,   COLORS.fibre],
           ].map(([label, value, color]) => (
-            <div key={label as string} className="bg-surface-2 rounded-xl py-3">
-              <div className="text-xl font-bold tabular-nums" style={{ color: color as string }}>{value}g</div>
+            <div key={label as string} className="min-w-0 bg-surface-2 rounded-xl px-1 py-3">
+              <div className="text-lg sm:text-xl font-bold tabular-nums" style={{ color: color as string }}>{value}g</div>
               <div className="text-xs text-ink-muted mt-0.5">{label as string}</div>
             </div>
           ))}

@@ -1,6 +1,6 @@
 // Bumped on every release. Footer shows it, and the release-notes popup fires
 // once per device whenever the stored version no longer matches this one.
-export const APP_VERSION = 'SK-V4.2.0';
+export const APP_VERSION = 'SK-V4.2.1';
 
 export interface Release {
   version: string;
@@ -12,7 +12,7 @@ export interface Release {
 // story of the version 4 series rather than just the last patch.
 export const RELEASES: Release[] = [
   {
-    version: 'SK-V4.2.0',
+    version: 'SK-V4.2.1',
     title: "What's new in version 4",
     notes: [
       'Liquid glass — charts, the consistency calendar and every meal section sit on translucent panels lit by a soft colour wash behind the app.',
@@ -25,6 +25,7 @@ export const RELEASES: Release[] = [
       'Theme colour is yours: seven presets or a custom hue, re-tinting the whole app including the charts.',
       'Picture and theme now live behind Edit in Profile, so the page stays calm until you want to change something.',
       'Redesigned dropdowns that float over the page, and a heads-up popup whenever a fresh version is ready.',
+      'Rebuilt for real phones: the installed app now respects notches and gesture bars, scales its type to the screen, and nothing runs off the edge.',
     ],
   },
   {

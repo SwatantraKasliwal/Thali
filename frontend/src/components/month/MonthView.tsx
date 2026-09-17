@@ -222,7 +222,7 @@ export default function MonthView() {
       </Card>
 
       {/* Macro split + averages */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Card glass className="p-4">
           <div className="text-xs font-medium text-ink-muted mb-1">Avg macro split (g)</div>
           <div className="h-32">
@@ -239,10 +239,10 @@ export default function MonthView() {
               <div className="h-full flex items-center justify-center text-xs text-ink-muted">No data</div>
             )}
           </div>
-          <div className="flex justify-center gap-3 mt-1">
+          <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-1">
             {macroData.map(m => (
               <span key={m.name} className="flex items-center gap-1 text-xs text-ink-muted">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: m.color }} />
+                <span className="w-2 h-2 shrink-0 rounded-full" style={{ backgroundColor: m.color }} />
                 {m.name}
               </span>
             ))}

@@ -17,7 +17,7 @@ export default function AppRoot() {
   let inApp = false;
   if (!ready) {
     content = (
-      <div className="min-h-screen flex items-center justify-center bg-app">
+      <div className="min-h-dvh-safe flex items-center justify-center bg-app">
         <Loader2 className="animate-spin text-primary" size={28} />
       </div>
     );

@@ -42,7 +42,7 @@ export default function Footer() {
 
   return (
     <footer
-      className={`fixed bottom-2 right-3 z-30 pointer-events-none select-none text-right transition-opacity duration-300 ${
+      className={`fixed bottom-safe-2 right-safe-3 z-30 max-w-[70vw] pointer-events-none select-none text-right transition-opacity duration-300 ${
         atBottom ? 'opacity-100' : 'opacity-0'
       }`}
     >
