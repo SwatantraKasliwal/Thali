@@ -41,17 +41,22 @@ export default function AppShell() {
   const displayName = profile.name || user?.name || user?.email || '';
 
   // The Profile tab shows who you picked to be, not a generic person glyph.
-  const tabIcon = (id: TabId, Icon: React.ElementType, active: boolean, size: number) =>
-    id === 'profile' ? (
-      <Avatar
-        id={avatarId}
-        name={displayName}
-        size={size + 3}
-        className={active ? 'rounded-full ring-2 ring-primary' : ''}
-      />
-    ) : (
-      <Icon size={size} strokeWidth={active ? 2.5 : 2} />
-    );
+  // Every icon sits in the same 24px box, so the larger avatar neither drops
+  // the Profile label below the others nor shifts it sideways.
+  const tabIcon = (id: TabId, Icon: React.ElementType, active: boolean) => (
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+      {id === 'profile' ? (
+        <Avatar
+          id={avatarId}
+          name={displayName}
+          size={24}
+          className={active ? 'rounded-full ring-2 ring-primary' : ''}
+        />
+      ) : (
+        <Icon size={19} strokeWidth={active ? 2.5 : 2} />
+      )}
+    </span>
+  );
 
   return (
     <div className="min-h-dvh-safe bg-app flex">
@@ -74,7 +79,7 @@ export default function AppShell() {
                   : 'text-ink-muted hover:bg-surface-2 hover:text-ink'
               }`}
             >
-              {tabIcon(id, Icon, tab === id, 19)}
+              {tabIcon(id, Icon, tab === id)}
               {label}
             </button>
           ))}
@@ -121,7 +126,7 @@ export default function AppShell() {
                     : 'text-ink-muted border-transparent'
                 }`}
               >
-                {tabIcon(id, Icon, tab === id, 19)}
+                {tabIcon(id, Icon, tab === id)}
                 {label}
               </button>
             ))}

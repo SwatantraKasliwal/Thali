@@ -1,6 +1,6 @@
 // Bumped on every release. Footer shows it, and the release-notes popup fires
 // once per device whenever the stored version no longer matches this one.
-export const APP_VERSION = 'SK-V4.2.1';
+export const APP_VERSION = 'SK-V4.2.2';
 
 export interface Release {
   version: string;
@@ -12,7 +12,7 @@ export interface Release {
 // story of the version 4 series rather than just the last patch.
 export const RELEASES: Release[] = [
   {
-    version: 'SK-V4.2.1',
+    version: 'SK-V4.2.2',
     title: "What's new in version 4",
     notes: [
       'Liquid glass — charts, the consistency calendar and every meal section sit on translucent panels lit by a soft colour wash behind the app.',
@@ -26,6 +26,9 @@ export const RELEASES: Release[] = [
       'Picture and theme now live behind Edit in Profile, so the page stays calm until you want to change something.',
       'Redesigned dropdowns that float over the page, and a heads-up popup whenever a fresh version is ready.',
       'Rebuilt for real phones: the installed app now respects notches and gesture bars, scales its type to the screen, and nothing runs off the edge.',
+      'Month tab: Last 3 months, Last 6 months, This year and Till now plot every logged day (weekly averages beyond six months) instead of a few monthly averages, with your target line always in view.',
+      'Your avatar shows in full colour on the phone tab bar.',
+      'Sharper daily targets: protein follows your activity level and goes up on a cut, a cut never drops below a safe calorie floor, and fibre scales with your calories.',
     ],
   },
   {

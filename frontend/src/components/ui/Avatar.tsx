@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { AvatarDef, avatarById } from '@/lib/avatars';
 
 const INK = '#2A2118';       // eyes / line work
@@ -259,8 +260,13 @@ function Badge({ d }: { d: AvatarDef }) {
 }
 
 function AvatarArt({ d, size, showBadge }: { d: AvatarDef; size: number; showBadge: boolean }) {
-  const bgId   = `av-bg-${d.id}`;
-  const clipId = `av-clip-${d.id}`;
+  // Ids must be unique per instance, not per face: the same avatar renders in
+  // both the sidebar and the phone tab bar, and url(#id) resolves to the first
+  // copy in the document. On a phone that copy is the display:none sidebar, so
+  // the visible one lost its gradient background.
+  const uid    = useId().replace(/[^\w-]/g, '');
+  const bgId   = `av-bg-${d.id}-${uid}`;
+  const clipId = `av-clip-${d.id}-${uid}`;
   return (
     <svg
       viewBox="0 0 96 96"
