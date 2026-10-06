@@ -6,7 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { Profile } from '@/types';
 import { COLORS } from '@/lib/constants';
-import { computeTargets } from '@/lib/nutrition';
+import { computeTargets, CUT_PROTEIN_BONUS, GOAL_ADJUST, MIN_CUT_CAL } from '@/lib/nutrition';
 import { allowInteger } from '@/lib/validate';
 import Card from '@/components/ui/Card';
 import Dropdown from '@/components/ui/Dropdown';
@@ -99,8 +99,17 @@ export default function ProfileView() {
   // While editing, project the targets the draft would produce.
   const p = editing ? draft : profile;
   const shownTargets = editing ? computeTargets(draft) : targets;
-  const goalAdj = p.goal === 'cut' ? -450 : p.goal === 'bulk' ? 350 : 0;
+  const goalAdj = GOAL_ADJUST[p.goal];
   const round1 = (n: number) => Math.round(n * 10) / 10;
+  const cutting = p.goal === 'cut';
+  const calNote = shownTargets.calFloored
+    ? `held at the floor — a cut never drops below ${MIN_CUT_CAL[p.sex]} kcal (or TDEE, if lower)`
+    : cutting ? `−${-goalAdj} deficit to lose fat` : p.goal === 'bulk' ? `+${goalAdj} surplus to gain` : 'maintenance, no adjustment';
+  const proteinNote =
+    `${ACTIVITY_LABELS[String(p.activityLevel)] ?? 'Activity'} → ` +
+    `${round1(shownTargets.proteinPerKg - (cutting ? CUT_PROTEIN_BONUS : 0))} g/kg` +
+    (cutting ? ` + ${CUT_PROTEIN_BONUS} on a cut` : '') +
+    (shownTargets.proteinBasisKg < round1(p.weightKg) ? ` · dosed on ${shownTargets.proteinBasisKg} kg, your weight at BMI 25` : '');
 
   return (
     <div className="space-y-4">
@@ -316,13 +325,14 @@ export default function ProfileView() {
             label={`3 · Calorie target (${p.goal})`}
             formula={`${shownTargets.tdee} ${goalAdj === 0 ? '± 0' : goalAdj > 0 ? `+ ${goalAdj}` : `− ${-goalAdj}`}`}
             result={`${shownTargets.cal} kcal`}
-            note={p.goal === 'cut' ? '−450 deficit to lose fat' : p.goal === 'bulk' ? '+350 surplus to gain' : 'maintenance, no adjustment'}
+            note={calNote}
           />
           <div className="border-t border-line pt-3 space-y-3">
             <FormulaRow
               label="Protein"
-              formula={`${p.weightKg} kg × 1.8 g`}
+              formula={`${shownTargets.proteinBasisKg} kg × ${shownTargets.proteinPerKg} g`}
               result={`${shownTargets.protein} g`}
+              note={proteinNote}
               accent={COLORS.protein}
             />
             <FormulaRow
@@ -339,8 +349,9 @@ export default function ProfileView() {
             />
             <FormulaRow
               label="Fibre"
-              formula="fixed daily recommendation"
+              formula={`14 g × ${shownTargets.cal} ÷ 1000`}
               result={`${shownTargets.fibre} g`}
+              note="IOM guideline, kept within 25–38 g"
               accent={COLORS.fibre}
             />
           </div>

@@ -42,6 +42,9 @@ export interface Targets {
   carbs: number;
   fat: number;
   fibre: number;
+  proteinPerKg: number;    // g of protein per kg the target was built on
+  proteinBasisKg: number;  // weight protein is dosed on (capped at BMI 25)
+  calFloored: boolean;     // a cut was lifted to the safe-minimum floor
 }
 
 export interface DaySummary {

@@ -6,7 +6,7 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import { useApp } from '@/context/AppContext';
-import { parseISO, toISO } from '@/lib/dates';
+import { addDays, parseISO, startOfWeek, toISO } from '@/lib/dates';
 import { COLORS, AXIS_TICK, TOOLTIP_STYLE } from '@/lib/constants';
 import { MonthRange } from '@/types';
 import Card from '@/components/ui/Card';
@@ -14,6 +14,10 @@ import Dropdown from '@/components/ui/Dropdown';
 
 const WEIGHT_COLOR = 'var(--primary)';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAY_MS = 86_400_000;
+// Past this many days a point per day gets too dense for a phone-width chart,
+// so the trend folds into weekly averages. "Last 6 months" always stays daily.
+const WEEKLY_AFTER_DAYS = 186;
 
 interface DayAgg { calories: number; protein: number; carbs: number; fat: number; fibre: number }
 const emptyAgg = (): DayAgg => ({ calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 });
@@ -39,7 +43,7 @@ export default function MonthView() {
   const now = new Date(); now.setHours(0, 0, 0, 0);
 
   // A single-calendar-month view: the current month (up to today) or last month.
-  const isDaily = range === 'month' || range === 'lastMonth';
+  const singleMonth = range === 'month' || range === 'lastMonth';
 
   // Range start date
   const start = useMemo(() => {
@@ -70,37 +74,66 @@ export default function MonthView() {
     range === '6m'        ? 'Last 6 months' : 'All time';
 
   // ── Trend data ──────────────────────────────────────────────────────────
-  // single month → daily; longer ranges → monthly avg
+  // Every range plots real days on a date axis, so each logged day shows up.
+  // (Multi-month ranges used to average whole months into 3–10 points, which
+  // flattened months of logging into one near-straight line.) Long spans fold
+  // into Mon→Sun weekly averages. The line starts on the first day anything was
+  // logged — earlier dates stay blank rather than 0 — and a missed day after
+  // that reads as 0.
+  const weekly = (end.getTime() - start.getTime()) / DAY_MS + 1 > WEEKLY_AFTER_DAYS;
+
   const trend = useMemo(() => {
-    if (isDaily) {
-      const y = start.getFullYear();
-      const m = start.getMonth();
-      // current month → up to today; last month → the whole (completed) month
-      const days = range === 'month' ? now.getDate() : new Date(y, m + 1, 0).getDate();
-      return Array.from({ length: days }, (_, i) => {
-        const iso = toISO(new Date(y, m, i + 1));
-        return { label: String(i + 1), calories: Math.round(dayMap.get(iso)?.calories ?? 0) };
-      });
+    let first: string | undefined;
+    for (const iso of dayMap.keys()) if (!first || iso < first) first = iso;
+    if (!first) return [];
+
+    const days: { t: number; calories: number }[] = [];
+    const from = new Date(Math.max(start.getTime(), parseISO(first).getTime()));
+    for (let d = from; d <= end; d = addDays(d, 1)) {
+      days.push({ t: d.getTime(), calories: Math.round(dayMap.get(toISO(d))?.calories ?? 0) });
     }
-    // monthly buckets from `start` to now
-    const out: { label: string; calories: number }[] = [];
-    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
-    while (cur <= now) {
-      let sum = 0, n = 0;
-      for (const [iso, agg] of dayMap) {
-        const d = parseISO(iso);
-        if (d.getFullYear() === cur.getFullYear() && d.getMonth() === cur.getMonth() && agg.calories > 0) {
-          sum += agg.calories; n++;
-        }
-      }
-      const label = range === 'all'
-        ? `${MONTHS[cur.getMonth()]} '${String(cur.getFullYear()).slice(2)}`
-        : MONTHS[cur.getMonth()];
-      out.push({ label, calories: n ? Math.round(sum / n) : 0 });
-      cur.setMonth(cur.getMonth() + 1);
+    if (!weekly) return days;
+
+    // Average only the days actually logged; each week sits on its first day in range.
+    const weeks = new Map<number, { t: number; sum: number; n: number }>();
+    for (const d of days) {
+      const key = startOfWeek(new Date(d.t)).getTime();
+      const w = weeks.get(key) ?? { t: d.t, sum: 0, n: 0 };
+      if (d.calories > 0) { w.sum += d.calories; w.n++; }
+      weeks.set(key, w);
     }
+    return [...weeks.values()].map(w => ({ t: w.t, calories: w.n ? Math.round(w.sum / w.n) : 0 }));
+  }, [dayMap, start, end, weekly]);
+
+  // X ticks: every 5th day inside a single month; otherwise the 1st of each
+  // month, plus the start date itself when it falls mid-month ("Till now").
+  const ticks = useMemo(() => {
+    const out: number[] = [];
+    if (singleMonth) {
+      for (let d = start; d <= end; d = addDays(d, 5)) out.push(d.getTime());
+      return out;
+    }
+    if (start.getDate() !== 1) out.push(start.getTime());
+    let d = new Date(start.getFullYear(), start.getMonth() + (start.getDate() === 1 ? 0 : 1), 1);
+    for (; d <= end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) out.push(d.getTime());
     return out;
-  }, [range, dayMap, start]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [singleMonth, start, end]);
+
+  const multiYear = start.getFullYear() !== end.getFullYear();
+  const tickLabel = (t: number) => {
+    const d = new Date(t);
+    if (singleMonth) return String(d.getDate());
+    const yy = multiYear ? ` '${String(d.getFullYear()).slice(2)}` : '';
+    return `${d.getDate() === 1 ? '' : `${d.getDate()} `}${MONTHS[d.getMonth()]}${yy}`;
+  };
+  const tipLabel = (t: number) => {
+    const day = new Date(t).toLocaleDateString(undefined, {
+      ...(weekly ? {} : { weekday: 'short' as const }),
+      day: 'numeric', month: 'short',
+      ...(weekly || multiYear ? { year: 'numeric' as const } : {}),
+    });
+    return weekly ? `Week of ${day}` : day;
+  };
 
   // ── Averages over range ───────────────────────────────────────────────────
   const avg = useMemo(() => {
@@ -183,19 +216,34 @@ export default function MonthView() {
       {/* Calorie trend */}
       <Card glass className="p-4">
         <div className="text-xs font-medium text-ink-muted mb-3">
-          {isDaily ? 'Daily calories' : 'Avg daily calories / month'}
+          {weekly ? 'Avg daily calories / week' : 'Daily calories'}
         </div>
         <div className="h-44">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={trend} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
-              <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}
-                interval={isDaily ? 4 : 0} />
-              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--ink)', fontWeight: 600 }} itemStyle={{ color: 'var(--ink)' }} />
-              <ReferenceLine y={targets.cal} stroke={COLORS.cal} strokeDasharray="4 4" />
-              <Area type="monotone" dataKey="calories" stroke={COLORS.cal} fill={COLORS.cal} fillOpacity={0.14} strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
+          {trend.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trend} margin={{ top: 6, right: 12, left: -18, bottom: 0 }}>
+                <XAxis dataKey="t" type="number" domain={[start.getTime(), end.getTime()]}
+                  ticks={ticks} tickFormatter={tickLabel} interval="equidistantPreserveStart" minTickGap={8}
+                  tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--ink)', fontWeight: 600 }} itemStyle={{ color: 'var(--ink)' }}
+                  labelFormatter={tipLabel}
+                  formatter={(v: number) => [`${v} kcal`, weekly ? 'Avg / day' : 'Calories']} />
+                {/* extendDomain keeps the target in view even when every day sits below
+                    it. yAxisId is spelled out because React 19 no longer copies class
+                    defaultProps onto elements, so recharts' domain scan skips the line
+                    without it. */}
+                <ReferenceLine y={targets.cal} yAxisId={0} ifOverflow="extendDomain"
+                  stroke={COLORS.cal} strokeDasharray="4 4" />
+                <Area type="monotone" dataKey="calories" stroke={COLORS.cal} fill={COLORS.cal} fillOpacity={0.14} strokeWidth={2}
+                  dot={trend.length === 1} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-xs text-ink-muted">
+              Nothing logged in this range
+            </div>
+          )}
         </div>
       </Card>
 
