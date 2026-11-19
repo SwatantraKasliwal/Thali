@@ -8,6 +8,7 @@ import {
 import { computeTargets, snapActivityLevel } from '@/lib/nutrition';
 import { toISO } from '@/lib/dates';
 import { api } from '@/lib/api';
+import { clearSearchCache } from '@/lib/foodSearch';
 import { useAuth } from './AuthContext';
 
 interface AppContextValue {
@@ -337,6 +338,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json().catch(() => ({}));
       throw new Error(typeof data?.error === 'string' ? data.error : 'Failed to save food');
     }
+    // Remembered search answers predate this dish — drop them so it shows up.
+    clearSearchCache();
     return res.json();
   }, []);
 

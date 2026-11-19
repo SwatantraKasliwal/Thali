@@ -60,7 +60,7 @@ export default function OnboardingView() {
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-md">
+      <div className="stagger w-full max-w-md">
         <div className="text-center mb-6">
           <h1 className="text-xl font-bold text-ink">
             Welcome{user?.name ? `, ${user.name}` : ''} 👋

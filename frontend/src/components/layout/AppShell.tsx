@@ -11,6 +11,7 @@ import ProfileView from '@/components/profile/ProfileView';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import StreakBadge from '@/components/ui/StreakBadge';
 import Avatar from '@/components/ui/Avatar';
+import Mark from '@/components/ui/Logo';
 import { useAvatar } from '@/lib/useAvatar';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
@@ -22,10 +23,9 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
 
 function Logo() {
   return (
-    <div className="flex items-center gap-2.5 min-w-0">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.svg" alt="Thali" className="w-9 h-9 rounded-xl shrink-0" />
-      <div className="min-w-0">
+    <div className="group flex items-center gap-2.5 min-w-0">
+      <Mark size={36} className="rounded-xl transition-transform duration-300 group-hover:-rotate-6" />
+      <div className="min-w-0 animate-fade">
         <h1 className="font-brand text-base font-bold text-ink leading-tight tracking-wide truncate">Thali</h1>
         <p className="text-xs text-ink-muted leading-tight truncate">calorie &amp; macro tracker</p>
       </div>
@@ -38,6 +38,7 @@ export default function AppShell() {
   const { user, logout } = useAuth();
   const { avatarId } = useAvatar();
   const activeLabel = TABS.find(t => t.id === tab)?.label ?? '';
+  const tabIndex = Math.max(0, TABS.findIndex(t => t.id === tab));
   const displayName = profile.name || user?.name || user?.email || '';
 
   // The Profile tab shows who you picked to be, not a generic person glyph.
@@ -115,27 +116,35 @@ export default function AppShell() {
               </button>
             </div>
           </div>
-          <nav className="grid grid-cols-4 border-t border-line">
+          <nav className="relative grid grid-cols-4 border-t border-line">
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
-                className={`flex flex-col items-center gap-0.5 py-2.5 text-xs border-b-2 transition-colors ${
-                  tab === id
-                    ? 'text-primary border-primary'
-                    : 'text-ink-muted border-transparent'
+                className={`flex flex-col items-center gap-0.5 py-2.5 text-xs transition-colors duration-200 ${
+                  tab === id ? 'text-primary' : 'text-ink-muted'
                 }`}
               >
-                {tabIcon(id, Icon, tab === id)}
+                <span className={`transition-transform duration-300 ${tab === id ? '-translate-y-px scale-110' : ''}`}>
+                  {tabIcon(id, Icon, tab === id)}
+                </span>
                 {label}
               </button>
             ))}
+            {/* One underline that glides to the active tab. */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute bottom-0 left-0 h-0.5 w-1/4 transition-transform duration-300 ease-out"
+              style={{ transform: `translateX(${tabIndex * 100}%)` }}
+            >
+              <span className="mx-auto block h-full w-3/5 rounded-full bg-primary" />
+            </span>
           </nav>
         </header>
 
         {/* Desktop page title bar */}
         <div className="hidden lg:flex items-center justify-between px-8 py-5 bg-surface border-b border-line">
-          <h2 className="text-lg font-semibold text-ink">{activeLabel}</h2>
+          <h2 key={activeLabel} className="animate-fade text-lg font-semibold text-ink">{activeLabel}</h2>
           <div className="flex items-center gap-2">
             <StreakBadge />
             <ThemeToggle />

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, X, Trash2, Search, Loader2, Pencil, Check, Ban, PencilLine } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Plus, X, Trash2, Search, Loader2, Pencil, Check, Ban, PencilLine, History, Sparkles } from 'lucide-react';
 import { FoodResult, LogEntry } from '@/types';
 import { allowDecimals } from '@/lib/validate';
-import { api } from '@/lib/api';
 import { useApp } from '@/context/AppContext';
+import {
+  cachedSearch, fetchFoods, recentFoods, matchOwnFoods, highlight,
+} from '@/lib/foodSearch';
 
 interface MealSectionProps {
   meal: string;
@@ -24,16 +26,43 @@ function r(n: number, decimals = 1) {
 // Blank custom-food draft (values are for one serving; serving weight is separate).
 const emptyCustom = { name: '', serving: '100', calories: '', protein: '', carbs: '', fat: '', fibre: '' };
 
+// One-tap portion sizes under the grams box.
+const QUICK_GRAMS = [50, 100, 150, 200, 250];
+
+// Local foods answer first (~120 ms), the live databases after the user pauses.
+const FAST_DELAY = 120;
+const FULL_DELAY = 450;
+
+/** Name with the typed words picked out — plain text nodes, nothing injected. */
+function Highlighted({ name, query }: { name: string; query: string }) {
+  return (
+    <>
+      {highlight(name, query).map((part, i) =>
+        part.hit
+          ? <mark key={i} className="bg-transparent font-semibold text-primary">{part.text}</mark>
+          : <span key={i}>{part.text}</span>
+      )}
+    </>
+  );
+}
+
 export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, onDelete, onToggleFast }: MealSectionProps) {
-  const { addCustomFood } = useApp();
+  const { addCustomFood, logs } = useApp();
 
   const [open, setOpen]                     = useState(false);
   const [search, setSearch]                 = useState('');
   const [results, setResults]               = useState<FoodResult[]>([]);
+  const [corrected, setCorrected]           = useState<string | null>(null);
   const [selectedFood, setSelectedFood]     = useState<FoodResult | null>(null);
   const [qty, setQty]                       = useState('100');
   const [searching, setSearching]           = useState(false);
   const [searchErr, setSearchErr]           = useState<string | null>(null);
+  // The live lookup failed but local foods were found — say so, keep them.
+  const [partial, setPartial]               = useState(false);
+  // Keyboard-highlighted row in the results list.
+  const [active, setActive]                 = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef  = useRef<HTMLDivElement>(null);
 
   // Custom "Others" food state
   const [customMode, setCustomMode] = useState(false);
@@ -45,29 +74,104 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
   const [editId, setEditId]   = useState<string | null>(null);
   const [editQty, setEditQty] = useState('');
 
-  // ── Debounced API search ──────────────────────────────────────────────
+  // ── Search ────────────────────────────────────────────────────────────
+  // Two passes per pause in typing: a fast one over foods already saved on the
+  // server, then the full one that also asks the nutrition databases. Every
+  // request is aborted the moment the query changes, so an old, slow answer can
+  // never overwrite the results for what's in the box now.
   useEffect(() => {
-    if (customMode || search.trim().length < 2) { setResults([]); return; }
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      setSearchErr(null);
-      try {
-        const res = await api(`/foods/search?q=${encodeURIComponent(search.trim())}`);
-        if (res.ok) {
-          const data: FoodResult[] = await res.json();
-          setResults(data);
-        } else {
-          const body = await res.json().catch(() => ({}));
-          setSearchErr(typeof body?.error === 'string' ? body.error : `Search failed (${res.status})`);
-        }
-      } catch {
-        setSearchErr('Cannot reach server');
-      } finally {
-        setSearching(false);
-      }
-    }, 400);
-    return () => clearTimeout(timer);
+    const q = search.trim();
+    setActive(0);
+    if (customMode || q.length < 2) {
+      setResults([]); setCorrected(null); setSearching(false); setSearchErr(null); setPartial(false);
+      return;
+    }
+
+    const memo = cachedSearch(q);
+    if (memo) {
+      setResults(memo.results); setCorrected(memo.corrected);
+      setSearching(false); setSearchErr(null); setPartial(false);
+      return;
+    }
+
+    const ctrl = new AbortController();
+    let fullIn = false;
+    let fastFound = 0;
+    setSearching(true);
+    setSearchErr(null);
+
+    const fastTimer = setTimeout(() => {
+      fetchFoods(q, true, ctrl.signal)
+        .then(r => {
+          if (fullIn || ctrl.signal.aborted) return;
+          fastFound = r.results.length;
+          setResults(r.results);
+          setCorrected(r.corrected);
+        })
+        .catch(() => { /* the full pass reports errors */ });
+    }, FAST_DELAY);
+
+    const fullTimer = setTimeout(() => {
+      fetchFoods(q, false, ctrl.signal)
+        .then(r => {
+          if (ctrl.signal.aborted) return;
+          fullIn = true;
+          setResults(r.results);
+          setCorrected(r.corrected);
+          setPartial(false);
+        })
+        .catch(e => {
+          if (ctrl.signal.aborted) return;
+          fullIn = true;
+          if (fastFound > 0) { setPartial(true); return; }
+          setResults([]);
+          setSearchErr(e instanceof TypeError ? 'Cannot reach server' : e instanceof Error ? e.message : 'Search failed');
+        })
+        .finally(() => { if (!ctrl.signal.aborted) setSearching(false); });
+    }, FULL_DELAY);
+
+    return () => { clearTimeout(fastTimer); clearTimeout(fullTimer); ctrl.abort(); };
   }, [search, customMode]);
+
+  // Dishes this user has logged before — instant matches and the "Recent" list.
+  const ownFoods = useMemo(() => recentFoods(logs), [logs]);
+  const query    = search.trim();
+  // Match the user's own dishes on what was typed and on the corrected spelling.
+  const own = query.length >= 2
+    ? [...new Map(
+        [...matchOwnFoods(query, ownFoods), ...(corrected ? matchOwnFoods(corrected, ownFoods) : [])]
+          .map(f => [f.id, f] as const)
+      ).values()].slice(0, 3)
+    : [];
+  const ownIds   = new Set(own.map(f => f.id));
+  // Prefer the server's copy of a dish (exact per-100 g values) when it has one.
+  const list: FoodResult[] = [
+    ...own.map(o => results.find(r => r.id === o.id) ?? o),
+    ...results.filter(f => !ownIds.has(f.id)),
+  ];
+  const markQuery = corrected ? `${query} ${corrected}` : query;
+
+  // Keep the keyboard-highlighted row in view.
+  useEffect(() => {
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-i="${active}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [active]);
+
+  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' && list.length) {
+      e.preventDefault();
+      setActive(i => Math.min(i + 1, list.length - 1));
+    } else if (e.key === 'ArrowUp' && list.length) {
+      e.preventDefault();
+      setActive(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && list[active]) {
+      e.preventDefault();
+      pick(list[active]);
+    } else if (e.key === 'Escape') {
+      if (search) setSearch(''); else close();
+    }
+  };
 
   const total   = Math.round(items.reduce((s, i) => s + i.calories, 0));
   const qtyNum  = Number(qty) || 0;
@@ -86,6 +190,7 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
     setSelectedFood(f);
     setQty('100');
     setResults([]);
+    setCorrected(null);
     setSearch('');
   };
 
@@ -99,6 +204,8 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
     setQty('100');
     setSearch('');
     setResults([]);
+    setCorrected(null);
+    setPartial(false);
     setSelectedFood(null);
     setCustomMode(false);
     setCustom(emptyCustom);
@@ -179,14 +286,16 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
             onClick={() => (open ? close() : setOpen(true))}
             className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover py-1.5 px-3 rounded-lg hover:bg-accent-soft transition-colors"
           >
-            {open ? <X size={14} /> : <Plus size={14} />}
+            <span className={`inline-flex transition-transform duration-300 ${open ? 'rotate-90' : ''}`}>
+              {open ? <X size={14} /> : <Plus size={14} />}
+            </span>
             {open ? 'Close' : 'Add'}
           </button>
         </div>
       </div>
 
       {isFasting && items.length === 0 && (
-        <p className="mt-3 text-xs text-ink-muted flex items-center gap-1.5">
+        <p className="animate-fade mt-3 text-xs text-ink-muted flex items-center gap-1.5">
           <Ban size={13} className="text-primary" /> Marked as a fast — this won&apos;t break your streak.
         </p>
       )}
@@ -195,7 +304,7 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
       {items.length > 0 && (
         <ul className="mt-3 space-y-1.5">
           {items.map(i => (
-            <li key={i.id} className="text-sm py-1">
+            <li key={i.id} className="animate-row text-sm py-1">
               {editId === i.id ? (
                 /* ── Inline edit row ── */
                 <div className="flex items-center gap-2">
@@ -265,7 +374,7 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
 
       {/* Add panel */}
       {open && (
-        <div className="mt-3 pt-3 border-t border-line space-y-2">
+        <div className="animate-expand mt-3 pt-3 border-t border-line space-y-2">
           {customMode ? (
             /* ── Custom "Others" food form ── */
             <>
@@ -333,46 +442,156 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
               {/* Search input */}
               <div className="relative">
                 {searching
-                  ? <Loader2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted animate-spin" />
+                  ? <Loader2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary animate-spin" />
                   : <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
                 }
                 <input
+                  ref={inputRef}
                   type="text"
-                  placeholder="Search foods (e.g. chicken, rice, dal)…"
+                  inputMode="search"
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder="Search foods (e.g. chicken, aloo, dal)…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 rounded-lg border border-line text-sm text-ink bg-surface-2 outline-none focus:border-primary transition-colors"
+                  onKeyDown={onSearchKey}
+                  role="combobox"
+                  aria-expanded={list.length > 0}
+                  aria-controls={`results-${meal}`}
+                  aria-activedescendant={list[active] ? `result-${meal}-${active}` : undefined}
+                  className="w-full pl-8 pr-8 py-2 rounded-lg border border-line text-sm text-ink bg-surface-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow]"
                   autoFocus
                 />
+                {searching && <div aria-hidden className="search-progress" />}
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearch(''); inputRef.current?.focus(); }}
+                    aria-label="Clear search"
+                    className="animate-pop absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-muted hover:text-ink hover:bg-surface"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </div>
 
-              {searchErr && <p className="text-xs text-danger">{searchErr}</p>}
+              {searchErr && <p className="animate-fade text-xs text-danger">{searchErr}</p>}
 
-              {/* Results list — click to select */}
-              {results.length > 0 && (
-                <div className="max-h-44 overflow-y-auto rounded-xl border border-line divide-y divide-line">
-                  {results.map(f => (
+              {corrected && query.length >= 2 && (
+                <p className="animate-fade flex items-center gap-1 px-1 text-xs text-ink-muted">
+                  <Sparkles size={12} className="text-primary" />
+                  Showing results for
+                  <button
+                    type="button"
+                    onClick={() => setSearch(corrected)}
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    {corrected}
+                  </button>
+                </p>
+              )}
+
+              {/* Nothing typed yet → the dishes this user logs most recently */}
+              {query.length < 2 && ownFoods.length > 0 && (
+                <div className="animate-fade">
+                  <p className="mb-1.5 flex items-center gap-1 px-1 text-[11px] font-medium text-ink-muted">
+                    <History size={11} /> Recent
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ownFoods.slice(0, 6).map((f, i) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => pick(f)}
+                        style={{ animationDelay: `${i * 30}ms` }}
+                        className="animate-pop max-w-full truncate rounded-full border border-line bg-surface-2 px-3 py-1 text-xs text-ink hover:border-primary hover:text-primary transition-colors"
+                      >
+                        {f.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Results list — click / Enter to select */}
+              {query.length >= 2 && list.length > 0 && (
+                <div
+                  ref={listRef}
+                  id={`results-${meal}`}
+                  role="listbox"
+                  className="max-h-72 overflow-y-auto overscroll-contain rounded-xl border border-line divide-y divide-line"
+                >
+                  {list.map((f, i) => (
                     <button
                       key={f.id}
+                      id={`result-${meal}-${i}`}
+                      data-i={i}
+                      role="option"
+                      aria-selected={i === active}
                       onClick={() => pick(f)}
-                      className="w-full flex justify-between items-start gap-2 px-3 py-2.5 text-sm text-left text-ink hover:bg-surface-2 transition-colors"
+                      onMouseMove={() => { if (i !== active) setActive(i); }}
+                      style={{ animationDelay: `${Math.min(i, 8) * 22}ms` }}
+                      className={`animate-row w-full flex items-start gap-2 px-3 py-2.5 text-left transition-colors ${
+                        i === active ? 'bg-surface-2' : ''
+                      }`}
                     >
-                      <span className="min-w-0 flex-1 break-words">{f.name}</span>
-                      <span className="text-xs text-ink-muted shrink-0 tabular-nums">
-                        {Math.round(f.caloriesPer100g)} kcal/100g
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm text-ink break-words">
+                          <Highlighted name={f.name} query={markQuery} />
+                        </span>
+                        <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-ink-muted tabular-nums">
+                          {ownIds.has(f.id) && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-accent-soft px-1.5 font-medium text-primary">
+                              <History size={10} /> Yours
+                            </span>
+                          )}
+                          <span>P {r(f.protein)}</span>
+                          <span aria-hidden>·</span>
+                          <span>C {r(f.carbs)}</span>
+                          <span aria-hidden>·</span>
+                          <span>F {r(f.fat)}</span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right leading-tight">
+                        <span className="block text-sm font-semibold text-ink tabular-nums">{Math.round(f.caloriesPer100g)}</span>
+                        <span className="block text-[10px] text-ink-muted">kcal/100g</span>
                       </span>
                     </button>
                   ))}
                 </div>
               )}
 
-              {search.trim().length >= 2 && !searching && results.length === 0 && !searchErr && (
-                <p className="text-xs text-ink-muted px-1">No results — add it as a custom food below</p>
+              {/* First answer still on its way */}
+              {query.length >= 2 && searching && list.length === 0 && (
+                <div aria-hidden className="rounded-xl border border-line divide-y divide-line overflow-hidden">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="flex items-center justify-between gap-3 px-3 py-3">
+                      <div className="flex-1 space-y-1.5">
+                        <div className="skeleton h-3 rounded" style={{ width: `${70 - i * 15}%` }} />
+                        <div className="skeleton h-2 w-1/3 rounded" />
+                      </div>
+                      <div className="skeleton h-3 w-10 rounded" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {partial && (
+                <p className="px-1 text-[11px] text-ink-muted">
+                  Showing saved foods — the online lookup didn&apos;t answer this time.
+                </p>
+              )}
+
+              {query.length >= 2 && !searching && list.length === 0 && !searchErr && (
+                <p className="animate-fade text-xs text-ink-muted px-1">No results — add it as a custom food below</p>
               )}
 
               {/* Others → custom food */}
               <button
-                onClick={() => { setCustomMode(true); setSearch(''); setResults([]); setSearchErr(null); }}
+                onClick={() => { setCustomMode(true); setSearch(''); setResults([]); setCorrected(null); setSearchErr(null); }}
                 className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-line py-2 text-xs font-semibold text-ink-muted hover:text-primary hover:border-primary transition-colors"
               >
                 <PencilLine size={13} /> Others — add a food not listed
@@ -381,7 +600,7 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
           ) : (
             <>
               {/* Selected dish → edit grams → add */}
-              <div className="flex items-center justify-between rounded-lg bg-accent-soft px-3 py-2">
+              <div className="animate-pop flex items-center justify-between rounded-lg bg-accent-soft px-3 py-2">
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-primary break-words">{selectedFood.name}</div>
                   <div className="text-xs text-ink-muted tabular-nums">
@@ -416,6 +635,24 @@ export default function MealSection({ meal, items, isFasting, onAdd, onUpdate, o
                 >
                   Add
                 </button>
+              </div>
+
+              {/* One-tap portions */}
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_GRAMS.map(g => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setQty(String(g))}
+                    className={`rounded-full border px-2.5 py-0.5 text-xs tabular-nums transition-colors ${
+                      qtyNum === g
+                        ? 'border-primary bg-accent-soft text-primary font-semibold'
+                        : 'border-line text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    {g} g
+                  </button>
+                ))}
               </div>
 
               {/* Live macro preview */}

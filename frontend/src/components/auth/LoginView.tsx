@@ -5,6 +5,7 @@ import { Loader2, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import GoogleButton from './GoogleButton';
+import Logo from '@/components/ui/Logo';
 
 type Mode = 'login' | 'signup';
 
@@ -88,13 +89,12 @@ export default function LoginView() {
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="flex flex-col items-center mb-7">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Thali" className="w-14 h-14 rounded-2xl" />
-          <h1 className="mt-3 font-brand text-2xl font-bold text-ink tracking-wide">Thali</h1>
-          <p className="text-xs text-ink-muted">calorie &amp; macro tracker</p>
+          <Logo size={56} className="rounded-2xl" />
+          <h1 className="animate-enter mt-3 font-brand text-2xl font-bold text-ink tracking-wide" style={{ animationDelay: '200ms' }}>Thali</h1>
+          <p className="animate-fade text-xs text-ink-muted" style={{ animationDelay: '320ms' }}>calorie &amp; macro tracker</p>
         </div>
 
-        <div className="bg-surface rounded-2xl border border-line shadow-sm p-6">
+        <div className="animate-enter bg-surface rounded-2xl border border-line shadow-sm p-6" style={{ animationDelay: '260ms' }}>
           {/* Tabs */}
           <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface-2 mb-5">
             {(['login', 'signup'] as Mode[]).map(m => (
@@ -114,7 +114,7 @@ export default function LoginView() {
 
           <form onSubmit={submit} className="space-y-3">
             {mode === 'signup' && (
-              <div className="relative">
+              <div className="animate-expand relative">
                 <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
                 <input
                   type="text" placeholder="Name (optional)" value={name}
@@ -152,7 +152,7 @@ export default function LoginView() {
 
             {/* Confirm password (signup) + eye */}
             {mode === 'signup' && (
-              <div className="relative">
+              <div className="animate-expand relative">
                 <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
                 <input
                   type={showConfirm ? 'text' : 'password'}
@@ -172,7 +172,7 @@ export default function LoginView() {
               </div>
             )}
 
-            {error && <p className="text-xs text-danger">{error}</p>}
+            {error && <p key={error} className="animate-row text-xs text-danger">{error}</p>}
 
             <button
               type="submit" disabled={busy}

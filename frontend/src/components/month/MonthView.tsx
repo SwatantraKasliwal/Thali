@@ -201,7 +201,7 @@ export default function MonthView() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="stagger space-y-4">
       {/* Header + range dropdown */}
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-semibold text-ink">{headerLabel}</h2>

@@ -63,7 +63,7 @@ export default function ReleaseNotes() {
           {release.title}
         </h2>
 
-        <ul className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+        <ul className="stagger mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
           {release.notes.map(note => (
             <li key={note} className="flex gap-2 text-sm text-ink-muted">
               <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />

@@ -239,8 +239,150 @@ input[type='number'] { -moz-appearance: textfield; }
 .animate-rise { animation: thali-rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-fade { animation: thali-fade 180ms ease-out both; }
 
+/* ── Motion system ─────────────────────────────────────────────────────────
+   Small, quick and calm: things fade up a few pixels as they arrive, nothing
+   bounces or loops except the splash. Entrance helpers use `backwards` fill so
+   no transform lingers once they finish — a lingering transform would trap the
+   floating dropdowns inside its stacking context.                            */
+:root {
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes thali-row {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes thali-expand {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes thali-enter {
+  from { opacity: 0; transform: translateY(10px) scale(0.995); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes thali-shimmer {
+  from { background-position: 150% 0; }
+  to   { background-position: -50% 0; }
+}
+@keyframes thali-indeterminate {
+  from { transform: translateX(-110%); }
+  to   { transform: translateX(310%); }
+}
+
+.animate-row    { animation: thali-row    240ms var(--ease-out-soft) backwards; }
+.animate-expand { animation: thali-expand 260ms var(--ease-out-soft) backwards; }
+.animate-enter  { animation: thali-enter  420ms var(--ease-out-soft) backwards; }
+
+/* Children arrive one after another — cards on every tab, list items in popups. */
+.stagger > * { animation: thali-enter 420ms var(--ease-out-soft) backwards; }
+.stagger > *:nth-child(2) { animation-delay: 50ms; }
+.stagger > *:nth-child(3) { animation-delay: 100ms; }
+.stagger > *:nth-child(4) { animation-delay: 150ms; }
+.stagger > *:nth-child(5) { animation-delay: 200ms; }
+.stagger > *:nth-child(6) { animation-delay: 250ms; }
+.stagger > *:nth-child(7) { animation-delay: 300ms; }
+.stagger > *:nth-child(n + 8) { animation-delay: 350ms; }
+
+/* Loading placeholders. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    color-mix(in srgb, var(--surface-2) 40%, var(--surface)) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: thali-shimmer 1.2s ease-in-out infinite;
+}
+
+/* Thin "still searching" line under the search box. */
+.search-progress {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.search-progress::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 32%;
+  border-radius: inherit;
+  background: var(--primary);
+  animation: thali-indeterminate 0.9s ease-in-out infinite;
+}
+
+/* Press feedback on every button. `scale` (not `transform`) so it composes with
+   the translate that centres absolutely-positioned icon buttons. */
+button:not(:disabled):active:not([role='option']) { scale: 0.96; }
+a:active { scale: 0.98; }
+
+/* Animated underline for text links. */
+.link-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 250ms var(--ease-out-soft), color 150ms ease;
+}
+.link-underline:hover,
+.link-underline:focus-visible { background-size: 100% 1px; }
+
+/* ── Logo ──────────────────────────────────────────────────────────────────
+   Bowl settles → leaf sprouts → arc draws → arrow + dots pop. */
+.logo * { transform-box: fill-box; }
+.logo-anim .logo-bg    { transform-origin: center; animation: logo-bg 520ms var(--ease-out-soft) backwards; }
+.logo-anim .logo-bowl  { transform-origin: 50% 100%; animation: logo-bowl 560ms 80ms var(--ease-out-soft) backwards; }
+.logo-anim .logo-leaf  { transform-origin: 20% 100%; animation: logo-leaf 620ms 300ms var(--ease-out-soft) backwards; }
+.logo-anim .logo-arc   { stroke-dasharray: 1; animation: logo-draw 700ms 420ms cubic-bezier(0.65, 0, 0.35, 1) backwards; }
+.logo-anim .logo-arrow { transform-origin: 100% 50%; animation: logo-pop 320ms 1040ms var(--ease-out-soft) backwards; }
+.logo-anim .logo-dot   { transform-origin: center; animation: logo-pop 300ms var(--ease-out-soft) backwards; }
+.logo-anim .logo-dot-1 { animation-delay: 1120ms; }
+.logo-anim .logo-dot-2 { animation-delay: 1200ms; }
+
+/* Splash: after the intro, the leaf sways and the bowl breathes. */
+.logo-splash .logo-leaf {
+  animation:
+    logo-leaf 620ms 300ms var(--ease-out-soft) backwards,
+    logo-sway 2.6s 1.3s ease-in-out infinite;
+}
+
+@keyframes logo-bg   { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
+@keyframes logo-bowl { from { opacity: 0; transform: translateY(9px) scaleY(0.85); } to { opacity: 1; transform: none; } }
+@keyframes logo-leaf { from { opacity: 0; transform: scale(0.2) rotate(-25deg); } to { opacity: 1; transform: none; } }
+@keyframes logo-draw { from { stroke-dashoffset: 1; opacity: 0; } 12% { opacity: 1; } to { stroke-dashoffset: 0; } }
+@keyframes logo-pop  { 0% { opacity: 0; transform: scale(0.3); } 70% { opacity: 1; transform: scale(1.15); } 100% { transform: none; } }
+@keyframes logo-sway { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-7deg); } }
+
+/* ── App-start splash ──────────────────────────────────────────────────── */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--app);
+  transition: opacity 420ms var(--ease-out-soft), visibility 0s linear 420ms;
+}
+.splash-word { animation: thali-enter 520ms 650ms var(--ease-out-soft) backwards; }
+.splash-tag  { animation: thali-fade 520ms 850ms ease-out backwards; }
+.splash-leaving { opacity: 0; visibility: hidden; }
+.splash-leaving .splash-mark { transform: scale(1.08); }
+.splash-mark { transition: transform 420ms var(--ease-out-soft); }
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-pop, .animate-rise, .animate-fade { animation: none; }
+  .animate-pop, .animate-rise, .animate-fade,
+  .animate-row, .animate-expand, .animate-enter, .stagger > *,
+  .skeleton, .search-progress::after,
+  .logo-anim *, .splash-word, .splash-tag { animation: none !important; }
+  .splash, .splash-mark, .link-underline { transition: none; }
+  button:active, a:active { scale: none !important; }
 }
 
 /* ── Safe-area helpers ─────────────────────────────────────────────────────
@@ -261,4 +403,13 @@ input[type='number'] { -moz-appearance: textfield; }
 
 @supports (height: 100dvh) {
   .min-h-dvh-safe { min-height: 100dvh; }
+}
+
+@keyframes thali-spin-in {
+  from { opacity: 0; transform: rotate(-90deg) scale(0.6); }
+  to   { opacity: 1; transform: none; }
+}
+.theme-spin { animation: thali-spin-in 360ms var(--ease-out-soft) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .theme-spin { animation: none; }
 }

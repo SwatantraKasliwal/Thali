@@ -41,7 +41,7 @@ export default function TodayView() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="stagger space-y-4">
       <div className="flex items-center justify-between">
         <button
           disabled={atEarliest}
@@ -51,7 +51,7 @@ export default function TodayView() {
         >
           <ChevronLeft size={20} />
         </button>
-        <span className="text-sm font-semibold text-ink">{formatDay(selectedDate)}</span>
+        <span key={selectedDate} className="animate-fade text-sm font-semibold text-ink">{formatDay(selectedDate)}</span>
         <button
           disabled={isToday}
           onClick={() => go(1)}
