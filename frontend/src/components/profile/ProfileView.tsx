@@ -112,7 +112,7 @@ export default function ProfileView() {
     (shownTargets.proteinBasisKg < round1(p.weightKg) ? ` · dosed on ${shownTargets.proteinBasisKg} kg, your weight at BMI 25` : '');
 
   return (
-    <div className="space-y-4">
+    <div className="stagger space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-ink">Your profile</h2>
         {!editing ? (

@@ -61,7 +61,7 @@ export default function WeekView() {
   const peak = Math.max(targets.cal, ...data.map(d => d.calories));
 
   return (
-    <div className="space-y-4">
+    <div className="stagger space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-semibold text-ink">
           {week.startISO === thisWeekISO ? 'This week' : week.label}

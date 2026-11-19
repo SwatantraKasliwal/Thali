@@ -3,7 +3,7 @@
 // v4 makes navigations network-first: cache-first on the HTML shell pinned an
 // installed PWA to whatever build it first saw, so shipped UI changes never
 // arrived. Bump CACHE on every release that must invalidate the shell.
-const CACHE = 'thali-v9';
+const CACHE = 'thali-v10';
 const PRECACHE = ['/', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -36,7 +36,7 @@ self.addEventListener('push', e => {
   e.waitUntil(
     self.registration.showNotification(title, {
       body:  data.body || '',
-      icon:  '/logo.svg',
+      icon:  '/icons/icon-192.png',
       badge: '/logo.svg',
       tag:   data.tag || 'thali-reminder',   // one reminder replaces the prior
       renotify: true,

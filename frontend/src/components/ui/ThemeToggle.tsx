@@ -12,7 +12,10 @@ export default function ThemeToggle({ className = '' }: { className?: string }) 
       title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
       className={`p-2 rounded-xl text-ink-muted hover:bg-surface-2 transition-colors ${className}`}
     >
-      {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+      {/* Keyed so the new icon spins in each time the theme flips. */}
+      <span key={theme} className="theme-spin inline-flex">
+        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+      </span>
     </button>
   );
 }

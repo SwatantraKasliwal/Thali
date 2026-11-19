@@ -1,3 +1,7 @@
+'use client';
+
+import { useCountUp, useMounted } from '@/lib/useCountUp';
+
 interface RingProps {
   value: number;
   max: number;
@@ -32,6 +36,9 @@ export default function Ring({ value, max }: RingProps) {
   const pct = Math.min(ratio, 1);
   const over = value > max;
   const color = ringColor(ratio, over);
+  // Sweep in from empty on mount and count the number up alongside it.
+  const mounted = useMounted();
+  const shown = useCountUp(value);
 
   return (
     <div className="relative w-44 h-44">
@@ -46,12 +53,12 @@ export default function Ring({ value, max }: RingProps) {
           strokeWidth="14"
           strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - pct)}
-          className="transition-all duration-500"
+          strokeDashoffset={circumference * (1 - (mounted ? pct : 0))}
+          className="transition-[stroke-dashoffset,stroke] duration-700 ease-out"
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold text-ink tabular-nums">{value}</span>
+        <span className="text-3xl font-bold text-ink tabular-nums">{shown}</span>
         <span className="text-xs text-ink-muted">of {max} kcal</span>
         <span className="mt-1 text-xs font-semibold" style={{ color }}>
           {over ? `${value - max} over` : `${max - value} left`}

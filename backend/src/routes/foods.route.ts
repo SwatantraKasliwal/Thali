@@ -5,14 +5,21 @@ import { searchFoods, createCustomFood } from '../services/nutrition.service';
 
 const router = Router();
 
-// GET /api/foods/search?q=chicken
+// GET /api/foods/search?q=chicken[&fast=1]
+//   fast=1 → local DB only (answers in a few hundred ms); omit for DB + live APIs.
+//   X-Search-Corrected carries the spelling actually searched when the query
+//   was auto-corrected ("chiken" → "chicken"); the body stays a plain array.
 router.get('/search', authenticate, async (req, res: Response) => {
-  const q = (req.query.q as string)?.trim();
-  if (!q || q.length < 2) return res.status(400).json({ error: 'q must be at least 2 characters' });
+  const raw = typeof req.query.q === 'string' ? req.query.q : '';
+  const q = raw.trim().slice(0, 80);
+  if (q.length < 2) return res.status(400).json({ error: 'q must be at least 2 characters' });
+  const fast = req.query.fast === '1';
 
   try {
-    const foods = await searchFoods(q);
-    res.json(foods);
+    const { results, corrected } = await searchFoods(q, { fast });
+    if (corrected) res.set('X-Search-Corrected', encodeURIComponent(corrected));
+    res.set('Cache-Control', 'no-store');
+    res.json(results);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Food search failed';
     res.status(502).json({ error: msg });

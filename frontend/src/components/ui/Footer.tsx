@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApp } from '@/context/AppContext';
 import { APP_VERSION } from '@/lib/version';
 
-const AVITA = 'Website Developed & Maintained by Avita Technologies';
+const AVITA_URL = 'https://avitatechnologies.com/';
 
 /**
  * Fixed bottom-right badge. The version tag is always shown; the line above it
@@ -34,9 +34,14 @@ export default function Footer() {
     check();
     window.addEventListener('scroll', check, { passive: true });
     window.addEventListener('resize', check);
+    // The page also grows without any scroll — the app mounting behind the
+    // splash, a meal panel opening, results arriving — so watch its size too.
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
+    ro?.observe(document.body);
     return () => {
       window.removeEventListener('scroll', check);
       window.removeEventListener('resize', check);
+      ro?.disconnect();
     };
   }, [tab, user]);
 
@@ -47,9 +52,27 @@ export default function Footer() {
       }`}
     >
       <p className="text-xs text-ink-muted leading-tight">
-        {showAvita ? AVITA : `© ${year} | Thali`}
+        {showAvita ? (
+          <>
+            Website Developed &amp; Maintained by{' '}
+            {/* Only clickable while the footer is actually showing. */}
+            <a
+              href={AVITA_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              tabIndex={atBottom ? 0 : -1}
+              className={`link-underline whitespace-nowrap font-semibold text-primary hover:text-primary-hover ${
+                atBottom ? 'pointer-events-auto' : ''
+              }`}
+            >
+              Avita Technologies
+            </a>
+          </>
+        ) : (
+          `© ${year} | Thali`
+        )}
         <br />
-        {APP_VERSION}
+        <span key={APP_VERSION} className="tabular-nums">{APP_VERSION}</span>
       </p>
     </footer>
   );
